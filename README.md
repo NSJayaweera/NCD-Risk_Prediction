@@ -4,7 +4,6 @@
 - *University:* Informatics Institute of Technology in collaboration with Robert Gordon University Aberdeen
 - *Degree:* BSc (Hons) in Artificial Intelligence and Data Science
 - *Supervisor:* Mr. Prashan Rathnayaka
-- *Submission Date:* October 2025
 
 **Team Members**
 - Neelesh Jayaweera – 20241799
