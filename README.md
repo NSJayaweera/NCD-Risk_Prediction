@@ -1,106 +1,47 @@
-# Osteoporosis Risk Prediction Model (DSGP Group 40)
+# Osteoporosis Risk Prediction Model (Master Pipeline)
 
-This repository contains a clean, step-by-step implementation of the **Osteoporosis Risk Prediction Model** using Google Colab notebooks only. The structure is designed so that anyone can follow the pipeline easily without worrying about local Python setup.
+This repository features a **comprehensive, all-in-one Master Pipeline** for osteoporosis risk prediction. It consolidates the entire machine learning workflow—from data loading to advanced model explainability—into a single, easy-to-run Google Colab notebook: `notebooks/00_MASTER_Complete_Pipeline.ipynb`.
 
-## 📁 Repository Structure
+## 🧠 Models Implemented
 
-```text
-notebooks/
-  01_Environment_Setup.ipynb      # Install libraries + configure Colab
-  02_Data_Preparation.ipynb       # Load dataset + EDA
-  03_Data_Preprocessing.ipynb     # Missing values, encoding, scaling, feature engineering
-  03_Data_Preprocessing.ipynb     # Missing values, encoding, scaling, feature engineering
-  04_Model_Training_and_Evaluation.ipynb # Train XGBoost models and evaluate performance
-  05_SHAP_Explainability.ipynb    # SHAP analysis + interpretability plots
+The pipeline trains and evaluates **12 distinct machine learning algorithms** to ensure robust performance comparison:
 
-data/
-  dataset_loaded.csv              # Saved after EDA (created by notebook 02)
-  preprocessed_data.csv           # Saved after preprocessing (created by notebook 03)
+1.  **Logistic Regression**: Baseline linear model for binary classification.
+2.  **Decision Tree**: Interpretable tree-based model.
+3.  **Random Forest**: Ensemble of decision trees for reduced variance.
+4.  **Gradient Boosting**: Sequential ensemble method for high accuracy.
+5.  **AdaBoost**: Adaptive boosting algorithm focusing on hard-to-classify samples.
+6.  **XGBoost**: Extreme Gradient Boosting, optimized for speed and performance.
+7.  **Bagging Classifier**: Bootstrap Aggregating to improve stability.
+8.  **Stacking Classifier**: Meta-model combining Random Forest, Gradient Boosting, and XGBoost.
+9.  **K-Nearest Neighbors (KNN)**: Distance-based classification.
+10. **Support Vector Machine (SVM)**: Effective in high-dimensional spaces.
+11. **Extra Trees Classifier**: Extremely Randomized Trees for variance reduction.
+12. **Neural Network (Deep Learning)**: Custom TensorFlow/Keras architecture for capturing non-linear relationships.
 
-models/
-  osteoporosis_male_model.pkl     # Trained male model (created by notebook 04)
-  osteoporosis_female_model.pkl   # Trained female model (created by notebook 04)
-  age_scaler.pkl                  # StandardScaler for Age feature
-  training_data.pkl               # Helper object for evaluation + SHAP
-  shap_explainers.pkl             # SHAP explainers and values
+## � Key Outputs & Reports
 
-figures/
-  confusion_matrices.png
-  roc_curves.png
-  performance_comparison.png
-  feature_importance.png
-  shap_summary_male.png
-  shap_summary_female.png
-  shap_force_male.png
-  shap_force_female.png
+The pipeline generates detailed analytical reports and high-quality visualizations:
 
-outputs/
-  model_performance_comparison.csv
-  male_feature_importance.csv
-  female_feature_importance.csv
-```
+### 1. Model Performance Leaderboard
+*   **Ranked Table**: A comparative leaderboard ranking all 12 algorithms based on **Accuracy** and **ROC-AUC** scores.
+*   **Performance CSV**: Auto-generated `model_performance_comparison.csv` containing detailed metrics (Precision, Recall, F1-Score) for every model.
 
-> Note: Most files under `data/`, `models/`, `figures/`, and `outputs/` are **generated inside Colab** when you run the notebooks.
+### 2. Confusion Matrices
+*   **Visualization**: A grid of confusion matrices for **all 12 models**, allowing for visual inspection of True Positives, False Positives, True Negatives, and False Negatives.
+*   **Comparison**: Side-by-side analysis to identify which models minimize False Negatives (critical for medical diagnosis).
 
-## 🚀 How to Use (Google Colab Only)
+### 3. SHAP Explainability Analysis
+Advanced interpretability plots to understand *why* the model makes specific predictions:
+*   **SHAP Summary Plot**: Global view of feature importance and impact direction (e.g., how Age or Calcium Intake affects risk).
+*   **SHAP Bar Plot**: Ranked importance of all risk factors.
+*   **SHAP Force Plots**: Local explanations for individual patient predictions.
 
-1. **Open the repository in GitHub**  
-   https://github.com/isumenuka/osteoporosis-risk-prediction
+### 4. Training Loss Curves
+*   **Loss Visualization**: Training and validation loss curves for the top-performing algorithms (including the Neural Network and XGBoost) to diagnose overfitting or underfitting.
 
-2. **Open each notebook in Google Colab**
-   - Click on a notebook (e.g., `01_Environment_Setup.ipynb`)
-   - Click the **"Open in Colab"** button (or copy the GitHub URL into Colab > File > Open Notebook > GitHub)
-
-3. **Run notebooks in order**
-
-   1. `01_Environment_Setup.ipynb`  
-      Installs all required libraries (`xgboost`, `scikit-learn`, `pandas`, `numpy`, `matplotlib`, `seaborn`, `shap`, `joblib`) and creates folders.
-
-   2. `02_Data_Preparation.ipynb`  
-      - Load `osteoporosis_cleaned_reorganized.csv` from Google Drive or local upload
-      - Perform basic EDA, demographic analysis, and save `data/dataset_loaded.csv`
-
-   3. `03_Data_Preprocessing.ipynb`  
-      - Handle missing values
-      - Encode binary and multi-category features
-      - Scale **Age** using `StandardScaler`
-      - Create interaction features (e.g., `Age_x_Hormonal`)
-      - Save `data/preprocessed_data.csv` and `models/age_scaler.pkl`
-
-   4. `04_Model_Training_and_Evaluation.ipynb`  
-      - Split data into male and female cohorts
-      - Train two XGBoost models (Male/Female)
-      - Evaluate accuracy, precision, recall, F1, AUC-ROC
-      - Generate confusion matrices and ROC curves
-      - Save models and performance plots
-
-   5. `05_SHAP_Explainability.ipynb`  
-      - Run SHAP summary plots, bar plots, and force plots
-      - Save explainers to `models/shap_explainers.pkl`
-
-## ✅ Design Goals
-
-- **Google Colab–First**: No local Python or virtualenv setup is required.
-- **Separation of Concerns**: Each notebook handles one clear stage: setup → EDA → preprocessing → training → evaluation → explainability.
-- **Reproducible Pipeline**: All intermediate artefacts are saved (`data/`, `models/`, `outputs/`, `figures/`).
-- **Explainable ML**: SHAP analysis integrated as a first-class step for clinical transparency.
-
-## 📦 Dataset
-
-- File: `osteoporosis_cleaned_reorganized.csv`
-- Location: Keep it in your **Google Drive** or upload directly inside Colab.
-- Characteristics: 1,958 records, 15 clinically meaningful risk indicators, perfectly balanced classes (0/1).
-
-## 🔗 Useful References
-
-The logic of these notebooks follows your detailed documentation:
-- *Osteoporosis_Component_Documentation.docx*
-- *Osteoporosis_Model_Complete_Guide.pdf*
-
-If you update your methodology there, we can easily sync the notebooks.
+### 5. ROC Curves
+*   **AUC Analysis**: Receiver Operating Characteristic (ROC) curves plotted for all models to evaluate trade-offs between sensitivity and specificity.
 
 ---
-
-If you want, I can later add:
-- A separate notebook for **inference + simple web form demo**
-- A notebook for **GitHub → Colab workflow** (clone repo, run directly from GitHub)
+**DSGP Group 40** | January 2026
