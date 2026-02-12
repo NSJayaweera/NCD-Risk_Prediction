@@ -1,0 +1,130 @@
+C:\Users\Isum Enuka\AppData\Roaming\Python\Python314\site-packages\sklearn\base.py:463: InconsistentVersionWarning: Trying to unpickle estimator DecisionTreeClassifier from version 1.6.1 when using version 1.8.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+C:\Users\Isum Enuka\AppData\Roaming\Python\Python314\site-packages\sklearn\base.py:463: InconsistentVersionWarning: Trying to unpickle estimator RandomForestClassifier from version 1.6.1 when using version 1.8.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+C:\Users\Isum Enuka\AppData\Roaming\Python\Python314\site-packages\sklearn\base.py:463: InconsistentVersionWarning: Trying to unpickle estimator LabelEncoder from version 1.6.1 when using version 1.8.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+C:\Users\Isum Enuka\AppData\Roaming\Python\Python314\site-packages\sklearn\base.py:463: InconsistentVersionWarning: Trying to unpickle estimator StandardScaler from version 1.6.1 when using version 1.8.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+C:\Users\Isum Enuka\AppData\Roaming\Python\Python314\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but RandomForestClassifier was fitted with feature names
+  warnings.warn(
+C:\Users\Isum Enuka\AppData\Roaming\Python\Python314\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but RandomForestClassifier was fitted with feature names
+  warnings.warn(
+======================================================================
+DIAGNOSTIC: LOW RISK MALE CASE
+======================================================================
+
+1. ORIGINAL INPUT:
+   Age: 30
+   Gender: Male
+   Hormonal Changes: Normal
+   Family History: No
+   Race/Ethnicity: African American
+   Body Weight: Normal
+   Calcium Intake: Adequate
+   Vitamin D Intake: Sufficient
+   Physical Activity: Active
+   Smoking: No
+   Alcohol Consumption: None
+   Medical Conditions: None
+   Medications: None
+   Prior Fractures: No
+
+   MAPPED: Alcohol Consumption
+      'None' -> 'Unknown'
+
+   MAPPED: Medical Conditions
+      'None' -> 'Unknown'
+
+   MAPPED: Medications
+      'None' -> 'Unknown'
+
+2. AFTER MAPPING:
+   Age: 30
+   Gender: Male
+   Hormonal Changes: Normal
+   Family History: No
+   Race/Ethnicity: African American
+   Body Weight: Normal
+   Calcium Intake: Adequate
+   Vitamin D Intake: Sufficient
+   Physical Activity: Active
+   Smoking: No
+   Alcohol Consumption: Unknown
+   Medical Conditions: Unknown
+   Medications: Unknown
+   Prior Fractures: No
+
+3. DATAFRAME SHAPE: (1, 14)
+   Columns: ['Age', 'Gender', 'Hormonal Changes', 'Family History', 'Race/Ethnicity', 'Body Weight', 'Calcium Intake', 'Vitamin D Intake', 'Physical Activity', 'Smoking', 'Alcohol Consumption', 'Medical Conditions', 'Medications', 'Prior Fractures']
+
+4. LABEL ENCODING:
+   Gender: 'Male' -> 1
+   Hormonal Changes: 'Normal' -> 0
+   Family History: 'No' -> 0
+   Race/Ethnicity: 'African American' -> 0
+   Body Weight: 'Normal' -> 0
+   Calcium Intake: 'Adequate' -> 0
+   Vitamin D Intake: 'Sufficient' -> 1
+   Physical Activity: 'Active' -> 0
+   Smoking: 'No' -> 0
+   Alcohol Consumption: 'Unknown' -> 1
+   Medical Conditions: 'Unknown' -> 2
+   Medications: 'Unknown' -> 1
+   Prior Fractures: 'No' -> 0
+
+5. ENCODED VALUES:
+{'Age': 30, 'Gender': 1, 'Hormonal Changes': 0, 'Family History': 0, 'Race/Ethnicity': 0, 'Body Weight': 0, 'Calcium Intake': 0, 'Vitamin D Intake': 1, 'Physical Activity': 0, 'Smoking': 0, 'Alcohol Consumption': 1, 'Medical Conditions': 2, 'Medications': 1, 'Prior Fractures': 0}
+
+6. FEATURE ORDER CHECK:
+   Scaler expects: ['Age', 'Gender', 'Hormonal Changes', 'Family History', 'Race/Ethnicity', 'Body Weight', 'Calcium Intake', 'Vitamin D Intake', 'Physical Activity', 'Smoking', 'Alcohol Consumption', 'Medical Conditions', 'Medications', 'Prior Fractures']
+   We have: ['Age', 'Gender', 'Hormonal Changes', 'Family History', 'Race/Ethnicity', 'Body Weight', 'Calcium Intake', 'Vitamin D Intake', 'Physical Activity', 'Smoking', 'Alcohol Consumption', 'Medical Conditions', 'Medications', 'Prior Fractures']
+   Order matches: True
+
+7. SCALED VALUES:
+   Shape: (1, 14)
+   Values: [-0.42628273  0.98680815 -0.99795918 -0.98077717 -1.19327318 -0.95211546
+ -1.0258708   0.96783074 -0.95798106 -1.00306906  0.99084882  1.23509667
+  0.99388996 -1.00409418]
+
+8. MODEL SELECTION:
+   Using: Male Model
+   Type: RandomForestClassifier
+
+9. PREDICTION:
+   Class: 1
+   Probabilities: [0.24270134 0.75729866]
+   Risk Score: 0.7573 (75.7%)
+
+======================================================================
+DATASET ANALYSIS
+======================================================================
+
+Dataset shape: (1958, 16)
+
+Target distribution:
+Osteoporosis
+0    0.5
+1    0.5
+Name: proportion, dtype: float64
+
+Age distribution:
+count    1958.000000
+mean       39.101124
+std        21.355424
+min        18.000000
+25%        21.000000
+50%        32.000000
+75%        53.000000
+max        90.000000
+Name: Age, dtype: float64
+
+Sample of healthy cases (Osteoporosis=0):
+   Age Gender Family History Smoking Physical Activity  Osteoporosis
+0   18   Male            Yes     Yes            Active             0
+1   20   Male             No     Yes            Active             0
+2   38   Male            Yes     Yes            Active             0

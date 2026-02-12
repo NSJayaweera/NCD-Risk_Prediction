@@ -267,8 +267,9 @@ def make_prediction(user_inputs, male_model, female_model, label_encoders, scale
         df_scaled = scaler.transform(df_input)
     except ValueError as e:
         # Handle feature name mismatch if any
-        st.error(f"Scaling error: {e}")
-        st.stop()
+        print(f"Scaling error: {e}")
+        raise e
+    
     
     # 5. Select appropriate model based on gender input (using raw input string from user_inputs)
     gender_input = user_inputs['Gender']

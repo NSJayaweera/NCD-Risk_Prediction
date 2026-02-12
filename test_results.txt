@@ -1,0 +1,34 @@
+SUCCESS: Successfully imported modules from Osteoporosis.py
+
+LOADING MODELS...
+SUCCESS: Models loaded successfully.
+
+STARTING PREDICTION TESTS
+============================================================
+
+TEST CASE: High Risk Female (Postmenopausal, Smoker, Low Calcium)
+   Gender: Female
+   Risk Score: 1.0000 (100.0%)
+   Prediction: Osteoporosis
+   Result: HIGH RISK
+
+TEST CASE: Low Risk Male (Active, Young, Healthy)
+   Gender: Male
+   Risk Score: 0.7573 (75.7%)
+   Prediction: Osteoporosis
+   Result: HIGH RISK
+
+TEST CASE: Moderate Risk Female (Elderly but Healthy Habits)
+   Gender: Female
+   Risk Score: 1.0000 (100.0%)
+   Prediction: Osteoporosis
+   Result: HIGH RISK
+
+TEST CASE: High Risk Male (Smoker, Heavy Drinker, Medical Issues)
+   Gender: Male
+   Risk Score: 1.0000 (100.0%)
+   Prediction: Osteoporosis
+   Result: HIGH RISK
+
+============================================================
+TESTS COMPLETED.
