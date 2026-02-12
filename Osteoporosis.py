@@ -14,6 +14,62 @@ import os
 from typing import Tuple, Dict, Any
 
 # ==============================================================================
+# 0. INPUT MAPPING CONFIGURATION
+# ==============================================================================
+# Maps user-friendly UI options to the exact labels expected by the trained models.
+# Values not in this map will be passed as-is.
+VALUE_MAPPING = {
+    'Hormonal Changes': {
+        'Normal': 'Normal', 
+        'Postmenopausal': 'Postmenopausal', 
+        'Perimenopausal': 'Normal',     # Mapped to baseline
+        'Low Testosterone': 'Normal'    # Mapped to baseline
+    },
+    'Race/Ethnicity': {
+        'Caucasian': 'Caucasian', 
+        'Asian': 'Asian', 
+        'African American': 'African American', 
+        'Hispanic': 'Caucasian',        # Mapped to majority group if not distinct in model
+        'Other': 'Caucasian'            # Mapped to baseline
+    },
+    'Body Weight': {
+        'Normal': 'Normal', 
+        'Underweight': 'Underweight', 
+        'Overweight': 'Normal'          # Model likely only flags Underweight as risk
+    },
+    'Calcium Intake': {
+        'Adequate': 'Adequate', 
+        'Low': 'Low', 
+        'High': 'Adequate'
+    },
+    'Physical Activity': {
+        'Sedentary': 'Sedentary', 
+        'Active': 'Active', 
+        'Moderate': 'Active'
+    },
+    'Alcohol Consumption': {
+        'None': 'Unknown',              # 'Unknown' appears to be the baseline/non-risk class in training data
+        'Moderate': 'Moderate', 
+        'Heavy': 'Unknown'              # Mapped to Unknown as model lacks 'Heavy' class
+    },
+    'Medical Conditions': {
+        'None': 'Unknown', 
+        'Rheumatoid Arthritis': 'Rheumatoid Arthritis', 
+        'Thyroid Disorders': 'Hyperthyroidism', 
+        'Celiac Disease': 'Unknown', 
+        'Kidney Disease': 'Unknown', 
+        'Other': 'Unknown'
+    },
+    'Medications': {
+        'None': 'Unknown', 
+        'Corticosteroids': 'Corticosteroids', 
+        'Anticonvulsants': 'Unknown', 
+        'Thyroid Medication': 'Unknown', 
+        'Other': 'Unknown'
+    }
+}
+
+# ==============================================================================
 # 1. MODEL LOADING & UTILS
 # ==============================================================================
 
@@ -179,34 +235,52 @@ def generate_recommendations(user_inputs, risk_score):
 
 def make_prediction(user_inputs, male_model, female_model, label_encoders, scaler):
     """Make osteoporosis risk prediction using gender-specific models"""
-    # Convert to dataframe
-    df_input = pd.DataFrame([user_inputs])
+    # 1. Create a dictionary for model input, applying mapping
+    model_input = {}
     
-    # Apply label encoding
+    for col, value in user_inputs.items():
+        # Apply mapping if exists for this column
+        if col in VALUE_MAPPING:
+            mapped_value = VALUE_MAPPING[col].get(value, value)
+            model_input[col] = mapped_value
+        else:
+            model_input[col] = value
+            
+    # 2. Convert to DataFrame
+    df_input = pd.DataFrame([model_input])
+    
+    # 3. Apply label encoding
     for col in label_encoders.keys():
         if col in df_input.columns:
             le = label_encoders[col]
+            val = df_input[col].iloc[0]
             try:
                 # Handle unseen labels carefully
-                df_input[col] = le.transform(df_input[col])
+                df_input[col] = le.transform([val])
             except ValueError:
-                st.warning(f"'{df_input[col].iloc[0]}' not recognized for {col}. Using default value.")
+                # Fallback to the most common class or 0 if truly unknown
+                st.warning(f"Value '{val}' not found in trained model features for '{col}'. Using default.")
                 df_input[col] = 0 # Default fallback
     
-    # Apply scaling
-    df_scaled = scaler.transform(df_input)
+    # 4. Apply scaling
+    try:
+        df_scaled = scaler.transform(df_input)
+    except ValueError as e:
+        # Handle feature name mismatch if any
+        st.error(f"Scaling error: {e}")
+        st.stop()
     
-    # Select appropriate model based on gender input (using raw input string)
+    # 5. Select appropriate model based on gender input (using raw input string from user_inputs)
     gender_input = user_inputs['Gender']
     if gender_input == "Male":
         model = male_model
     else:
         model = female_model
         
-    # Make prediction
+    # 6. Make prediction
     prediction = model.predict(df_scaled)[0]
     
-    # Handle proba calculation for different model types
+    # 7. Handle proba calculation for different model types
     if hasattr(model, 'predict_proba'):
         prediction_proba = model.predict_proba(df_scaled)[0]
         # Get probability of positive class (Index 1)
@@ -259,7 +333,7 @@ def main():
             </div>
             """, unsafe_allow_html=True)
             
-            # Personalized recommendations
+            # Personalized recommendations (Use original user inputs, not mapped ones)
             recommendations = generate_recommendations(user_inputs, risk_score)
             
             if recommendations:
