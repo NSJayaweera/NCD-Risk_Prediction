@@ -11,6 +11,7 @@ import pandas as pd
 import numpy as np
 import joblib
 import os
+import glob
 from typing import Tuple, Dict, Any
 
 # ==============================================================================
@@ -82,9 +83,22 @@ def get_model_paths() -> Dict[str, str]:
     base_dir = os.path.dirname(os.path.abspath(__file__))
     models_dir = os.path.join(base_dir, 'models')
     
+    # Dynamic Model Loading Logic
+    # 1. Search for Male Model
+    male_model_path = os.path.join(models_dir, 'osteoporosis_male_model.pkl') # Default
+    male_candidates = glob.glob(os.path.join(models_dir, 'osteoporosis_male_*_model.pkl'))
+    if male_candidates:
+        male_model_path = male_candidates[0] # Take first match
+        
+    # 2. Search for Female Model
+    female_model_path = os.path.join(models_dir, 'osteoporosis_female_model.pkl') # Default
+    female_candidates = glob.glob(os.path.join(models_dir, 'osteoporosis_female_*_model.pkl'))
+    if female_candidates:
+        female_model_path = female_candidates[0] # Take first match
+
     return {
-        'male_model': os.path.join(models_dir, 'osteoporosis_male_model.pkl'),
-        'female_model': os.path.join(models_dir, 'osteoporosis_female_model.pkl'),
+        'male_model': male_model_path,
+        'female_model': female_model_path,
         'encoders': os.path.join(models_dir, 'label_encoders.pkl'),
         'scaler': os.path.join(models_dir, 'scaler.pkl')
     }
