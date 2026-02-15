@@ -3,9 +3,7 @@ import pandas as pd
 import numpy as np
 import joblib
 
-# Wrap everything in a function
 def run_heart_analysis():
-    # CSS remains inside the function so it applies when called
     st.markdown("""
         <style>
         .stApp { background-color: #121212; color: #FFFFFF; }
@@ -22,8 +20,8 @@ def run_heart_analysis():
 
     @st.cache_resource
     def load_assets():
-        m_name = 'heart_disease_gbr_model.pkl'
-        c_name = 'model_columns.pkl'
+        m_name = 'heartModel/heart_disease_gbr_model.pkl'
+        c_name = 'heartModel/model_columns.pkl'
         return joblib.load(m_name), joblib.load(c_name)
 
     try:
@@ -39,7 +37,7 @@ def run_heart_analysis():
         col1, col2 = st.columns(2)
 
         with col1:
-            age = st.number_input("Age", min_value=1, max_value=120, value=52)
+            age = st.number_input("Age", min_value=1, max_value=120, value=30)
             sex = st.selectbox("Biological Sex", options=[(1, "Male"), (0, "Female")], format_func=lambda x: x[1])[0]
 
             cp = st.selectbox("Chest Pain Type",
@@ -49,15 +47,17 @@ def run_heart_analysis():
                                   (2, "Non-Heart Related Pain"),
                                   (3, "No Symptoms (Asymptomatic)")
                               ],
+                              index=3,
                               format_func=lambda x: x[1],
                               help="Select 'Typical' if the pain feels like pressure or squeezing in the chest.")[0]
 
-            trestbps = st.number_input("Resting Blood Pressure (mm Hg)", value=125,
+            trestbps = st.number_input("Resting Blood Pressure (mm Hg)", value=120,
                                        help="Your blood pressure while sitting still.")
-            chol = st.number_input("Total Cholesterol (mg/dL)", value=212)
+            chol = st.number_input("Total Cholesterol (mg/dL)", value=190)
 
             fbs = st.selectbox("Is Fasting Blood Sugar > 120 mg/dL?",
                                options=[(1, "Yes (High)"), (0, "No (Normal)")],
+                               index=1,
                                format_func=lambda x: x[1],
                                help="Select 'Yes' if a recent blood test showed high sugar after fasting.")[0]
 
@@ -68,14 +68,15 @@ def run_heart_analysis():
                                        (1, "Minor Irregularity (ST-T Abnormality)"),
                                        (2, "Thickened Heart Muscle (Hypertrophy)")
                                    ],
+                                   index=0,
                                    format_func=lambda x: x[1],
                                    help="Results from a resting electrocardiogram (ECG).")[0]
 
-            thalach = st.number_input("Maximum Heart Rate Achieved", value=168,
+            thalach = st.number_input("Maximum Heart Rate Achieved", value=170,
                                       help="The highest heart rate reached during intense physical activity.")
-            exang = st.selectbox("Chest Pain During Exercise?", options=[(1, "Yes"), (0, "No")], format_func=lambda x: x[1])[0]
+            exang = st.selectbox("Chest Pain During Exercise?", options=[(1, "Yes"), (0, "No")], index=0, format_func=lambda x: x[1])[0]
 
-            oldpeak = st.number_input("Heart Stress Level (ST Depression)", value=1.0, step=0.1,
+            oldpeak = st.number_input("Heart Stress Level (ST Depression)", value=0.0, step=0.1,
                                       help="A measure of how much the heart is stressed during exercise vs rest.")
 
             slope = st.selectbox("Heart Recovery Pattern (ST Slope)",
@@ -84,10 +85,12 @@ def run_heart_analysis():
                                      (1, "Flat"),
                                      (2, "Downward (Downsloping)")
                                  ],
+                                 index=0,
                                  format_func=lambda x: x[1],
                                  help="How the heart's electrical activity reacts to peak exercise.")[0]
 
             ca = st.selectbox("Major Vessels Visible (0-3)", options=[0, 1, 2, 3],
+                              index=3,
                               help="Number of major blood vessels seen clearly on an X-ray (fluoroscopy). Higher is generally better.")
 
             thal = st.selectbox("Blood Flow Status",
