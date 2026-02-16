@@ -25,3 +25,5 @@ The application is designed to be user-friendly, providing individuals with acce
 - Real-Time Inference: Immediate risk assessment based on user inputs
 - Personalized Recommendations: Tailored health advice based on risk levels
 - Explainable Results: Clear, interpretable risk presentations
+
+**Live Demo - https://ncd-riskprediction.streamlit.app/**
