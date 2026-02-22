@@ -1,0 +1,92 @@
+2026-02-12 11:51:45.476 WARNING streamlit.runtime.scriptrunner_utils.script_run_context: Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+======================================================================
+OSTEOPOROSIS RISK PREDICTION - COMPREHENSIVE TEST
+======================================================================
+
+LOADING MODELS...
+SUCCESS: Models loaded successfully.
+
+======================================================================
+PART 1: MANUAL TEST CASES
+======================================================================
+
+TEST CASE: High Risk Female (Postmenopausal, Smoker, Low Calcium)
+   Gender: Female
+   Risk Score: 0.8296 (83.0%)
+   Prediction: Osteoporosis
+   Result: HIGH RISK
+
+TEST CASE: Low Risk Male (Active, Young, Healthy)
+   Gender: Male
+   Risk Score: 0.7800 (78.0%)
+   Prediction: Osteoporosis
+   Result: HIGH RISK
+
+TEST CASE: Moderate Risk Female (Elderly but Healthy Habits)
+   Gender: Female
+   Risk Score: 0.8296 (83.0%)
+   Prediction: Osteoporosis
+   Result: HIGH RISK
+
+TEST CASE: High Risk Male (Smoker, Heavy Drinker, Medical Issues)
+   Gender: Male
+   Risk Score: 0.9234 (92.3%)
+   Prediction: Osteoporosis
+   Result: HIGH RISK
+
+======================================================================
+PART 2: REAL DATA SAMPLES (from osteoporosis_data.csv)
+======================================================================
+
+Testing 6 real samples from training data...
+
+[Sample ID: 1487371] Male, Age 22 | Actual: HEALTHY
+   Risk Score: 0.2706 (27.1%)
+   Prediction: No Osteoporosis
+   Actual: No Osteoporosis
+   Result: [CORRECT]
+
+[Sample ID: 1215887] Female, Age 18 | Actual: HEALTHY
+   Risk Score: 0.2645 (26.5%)
+   Prediction: No Osteoporosis
+   Actual: No Osteoporosis
+   Result: [CORRECT]
+
+[Sample ID: 1437029] Male, Age 18 | Actual: HEALTHY
+   Risk Score: 0.2154 (21.5%)
+   Prediction: No Osteoporosis
+   Actual: No Osteoporosis
+   Result: [CORRECT]
+
+[Sample ID: 1427339] Male, Age 43 | Actual: OSTEO
+   Risk Score: 0.9234 (92.3%)
+   Prediction: Osteoporosis
+   Actual: Osteoporosis
+   Result: [CORRECT]
+
+[Sample ID: 1155827] Female, Age 50 | Actual: OSTEO
+   Risk Score: 0.8296 (83.0%)
+   Prediction: Osteoporosis
+   Actual: Osteoporosis
+   Result: [CORRECT]
+
+[Sample ID: 1379331] Male, Age 70 | Actual: OSTEO
+   Risk Score: 0.9234 (92.3%)
+   Prediction: Osteoporosis
+   Actual: Osteoporosis
+   Result: [CORRECT]
+
+======================================================================
+TESTS COMPLETED
+======================================================================
+
+This test covers:
+  + Manual edge cases (high/low/moderate risk)
+  + Real training data samples (both classes)
+  + Both male and female predictions)
+
+For production use, the model should:
+  - Score high-risk cases > 70%
+  - Score low-risk cases < 30%
+  - Correctly classify most training samples
+======================================================================

@@ -6,6 +6,7 @@ from catboost import CatBoostRegressor
 
 
 def run_heart_analysis():
+
     # 1. CSS Styling
     st.markdown("""
             <style>
