@@ -221,6 +221,8 @@ def make_prediction(user_inputs, all_models, label_encoders, scaler):
 
     expected_features = get_feature_names()
     df_input = df_input[expected_features]
+    scaled_array = scaler.transform(df_input)
+    df_scaled = pd.DataFrame(scaled_array, columns=expected_features)
 
     scaled_array = scaler.transform(df_input)
     df_scaled = pd.DataFrame(scaled_array, columns=expected_features)
@@ -525,4 +527,4 @@ def main():
     run_osteoporosis_analysis()
 
 if __name__ == "__main__":
-    main()
+    run_osteoporosis_analysis()
