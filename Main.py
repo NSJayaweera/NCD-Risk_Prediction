@@ -1,6 +1,8 @@
 import streamlit as st
 import Heart
 import Osteoporosis
+import diabetes
+import CKD
 
 st.markdown("""
         <style>
@@ -233,13 +235,11 @@ elif st.session_state.page == 'Heart':
 
 elif st.session_state.page == 'Diabetes':
     st.button("← Back to Home", on_click=nav_to, args=('Home',))
-    st.header("Diabetes (Type 2) Risk Prediction")
-    st.write("This model uses parameters like blood glucose and BMI to identify high-risk individuals.")
+    diabetes.run_diabetes_analysis()
 
 elif st.session_state.page == 'CKD':
     st.button("← Back to Home", on_click=nav_to, args=('Home',))
-    st.header("Chronic Kidney Disease (CKD) Prediction")
-    st.write("This model predicts the likelihood of CKD and assesses the potential need for dialysis.")
+    CKD.run_ckd_analysis()
 
 elif st.session_state.page == 'Osteoporosis':
     st.button("← Back to Home", on_click=nav_to, args=('Home',))
