@@ -1,19 +1,29 @@
-##Diabetes Risk Prediction System
+**Project Overview**
+- *Project Title:* Non-Communicable Disease Prediction using Machine Learning
+- *Group:* 40
+- *University:* Informatics Institute of Technology in collaboration with Robert Gordon University Aberdeen
+- *Degree:* BSc (Hons) in Artificial Intelligence and Data Science
+- *Supervisor:* Mr. Prashan Rathnayaka
 
-An end-to-end machine learning-based diabetes risk prediction system that evaluates multiple classification and ensemble models to identify individuals at high risk of diabetes. The system is designed to support early detection, preventive healthcare, and real-time screening through a user-friendly web interface.
+**Team Members**
+- Neelesh Jayaweera – 20241799
+- Sangavitha Chandramowleeswaran – 20241812
+- Anuda Hettiarachchi – 20242097
+- Isum Gamage – 20242052
 
-##Project Overview
+**Project Description**<br>
+This project aims to develop an integrated web application that leverages machine learning models to provide early, multi-disease risk assessment for Non-Communicable Diseases (NCDs). The system focuses on four major NCDs:
+- Heart Disease
+- Chronic Kidney Disease
+- Diabetes
+- Osteoporosis
+The application is designed to be user-friendly, providing individuals with accessible and actionable health insights to encourage proactive health management.
 
-Diabetes is a major non-communicable disease (NCD) with increasing global prevalence. Early detection plays a vital role in preventing long-term complications. This project implements a robust machine learning pipeline that:
+**Key Features**
+- Multi-Disease Prediction: Four independent ML models for different NCDs
+- Web-Based Interface: Intuitive dashboard for input and visualization
+- Real-Time Inference: Immediate risk assessment based on user inputs
+- Personalized Recommendations: Tailored health advice based on risk levels
+- Explainable Results: Clear, interpretable risk presentations
 
-Cleans and preprocesses real-world health data
-
-Addresses class imbalance using SMOTE
-
-Trains and compares base, ensemble, and neural network models
-
-Selects the optimal model using clinically relevant evaluation metrics
-
-Deploys the best-performing model in a Streamlit-based web application
-
-The system enables real-time diabetes risk prediction using clinical and lifestyle factors.
+**Live Demo - https://ncd-riskprediction.streamlit.app/**
