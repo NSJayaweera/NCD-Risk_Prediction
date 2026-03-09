@@ -205,9 +205,9 @@ def run_diabetes_analysis():
 
     @st.cache_resource
     def load_assets():
-        best_m_name = 'models/best_diabetes_model.pkl'
-        second_m_name = 'models/second_best_diabetes_model.pkl'
-        s_name = 'models/scaler_pickle.pkl'
+        best_m_name = 'best_diabetes_model.pkl'
+        second_m_name = 'second_best_diabetes_model.pkl'
+        s_name = 'scaler_pickle.pkl'
 
         models = {
             "SVM": joblib.load(best_m_name),
