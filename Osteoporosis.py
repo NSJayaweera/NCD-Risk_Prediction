@@ -221,8 +221,6 @@ def make_prediction(user_inputs, all_models, label_encoders, scaler):
 
     expected_features = get_feature_names()
     df_input = df_input[expected_features]
-    scaled_array = scaler.transform(df_input)
-    df_scaled = pd.DataFrame(scaled_array, columns=expected_features)
 
     scaled_array = scaler.transform(df_input)
     df_scaled = pd.DataFrame(scaled_array, columns=expected_features)
@@ -486,7 +484,7 @@ def run_osteoporosis_analysis():
             for title, desc in steps:
                 if desc.strip():
                     steps_html += f"""
-                        <div style="display:flex; gap:1rem; margin-bottom:1rem; align-items:flex-start;">
+                        <div style="display:flex; gap:1rem; align-items:flex-start; padding:0.6rem 0; border-top:1px solid {tier_border};">
                             <div style="min-width:6px; height:6px; border-radius:50%; background:{tier_color};
                                         margin-top:0.45rem; flex-shrink:0;"></div>
                             <div>
@@ -495,29 +493,29 @@ def run_osteoporosis_analysis():
                             </div>
                         </div>"""
 
-            guidance_html = f"""
-                <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+            guidance_top = f"""
                 <div style="background:{tier_bg}; border:1px solid {tier_border}; border-radius:14px;
-                            padding:1.75rem 2rem; margin-bottom:1rem;">
+                            padding:1.75rem 2rem; margin-bottom:0.5rem;">
                     <p style="font-family:'Space Mono',monospace; color:{tier_color}; font-size:0.7rem;
                               letter-spacing:0.12em; text-transform:uppercase; margin:0 0 0.4rem;">
                         {tier_icon} Personalised Guidance
                     </p>
                     <p style="color:#E8E8F0; font-family:'DM Sans',sans-serif; font-size:1.1rem;
-                              font-weight:600; margin:0 0 1.25rem;">
+                              font-weight:600; margin:0 0 1rem;">
                         {tier_title}
-                    </p>
-                    {steps_html}
-                </div>
+                    </p>"""
+
+            st.markdown(guidance_top + steps_html + "</div>", unsafe_allow_html=True)
+
+            st.markdown("""
                 <div style="background:#13131A; border:1px solid #2A2A3A; border-left:3px solid #FF4B4B;
                             border-radius:8px; padding:0.85rem 1rem; margin-top:0.5rem;">
                     <p style="color:#C0C0D0; font-family:'DM Sans',sans-serif; font-size:0.82rem;
-                              line-height:1.5; margin:0;">
+                                line-height:1.5; margin:0;">
                         <strong>Note:</strong> This tool is for informational purposes only and is not a substitute for professional medical advice, diagnosis, or treatment.
                     </p>
-                </div>"""
-
-            components.html(guidance_html, height=len(steps) * 120 + 100, scrolling=False)
+                </div>
+            """, unsafe_allow_html=True)
 
         except Exception as e:
             st.error(f"Error during prediction: {str(e)}")
@@ -527,4 +525,4 @@ def main():
     run_osteoporosis_analysis()
 
 if __name__ == "__main__":
-    run_osteoporosis_analysis()
+    main()
