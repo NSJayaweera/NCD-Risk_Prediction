@@ -418,47 +418,41 @@ def run_heart_analysis():
                 ("Don't go it alone", "Consider involving a family member or friend in your health journey. Support makes a real difference, and many clinics offer heart health programmes with structured guidance."),
             ]
 
-        st.markdown(f"""
+        steps_html = ""
+        for title, desc in steps:
+            steps_html += f"""
+                        <div style="display:flex; gap:1rem; align-items:flex-start; padding:0.6rem 0; border-top:1px solid {tier_border};">
+                            <div style="min-width:6px; height:6px; border-radius:50%; background:{tier_color};
+                                        margin-top:0.45rem; flex-shrink:0;"></div>
+                            <div>
+                                <p style="color:#E8E8F0; font-weight:600; font-size:0.875rem; margin:0 0 0.2rem;">{title}</p>
+                                <p style="color:#A0A0B0; font-size:0.85rem; line-height:1.6; margin:0;">{desc}</p>
+                            </div>
+                        </div>"""
+
+        guidance_top = f"""
                     <div style="background:{tier_bg}; border:1px solid {tier_border}; border-radius:14px;
-                                padding:1.75rem 2rem 1rem 2rem;">
+                                padding:1.75rem 2rem; margin-bottom:0.5rem;">
                         <p style="font-family:'Space Mono',monospace; color:{tier_color}; font-size:0.7rem;
                                   letter-spacing:0.12em; text-transform:uppercase; margin:0 0 0.4rem;">
                             {tier_icon} Personalised Guidance
                         </p>
                         <p style="color:#E8E8F0; font-family:'DM Sans',sans-serif; font-size:1.1rem;
-                                  font-weight:600; margin:0;">
+                                  font-weight:600; margin:0 0 1rem;">
                             {tier_title}
+                        </p>"""
+
+        st.markdown(guidance_top + steps_html + "</div>", unsafe_allow_html=True)
+
+        st.markdown("""
+                    <div style="background:#13131A; border:1px solid #2A2A3A; border-left:3px solid #FF4B4B;
+                                border-radius:8px; padding:0.85rem 1rem; margin-top:0.5rem;">
+                        <p style="color:#C0C0D0; font-family:'DM Sans',sans-serif; font-size:0.82rem;
+                                  line-height:1.5; margin:0;">
+                            <strong>Note:</strong> This tool is for informational purposes only and is not a substitute for professional medical advice, diagnosis, or treatment.
                         </p>
                     </div>
                 """, unsafe_allow_html=True)
-
-        for title, desc in steps:
-            st.markdown(f"""
-                        <div style="background:{tier_bg}; border-left:1px solid {tier_border};
-                                    border-right:1px solid {tier_border};
-                                    padding:0.6rem 2rem; margin-top:1px;">
-                            <div style="display:flex; gap:1rem; align-items:flex-start;">
-                                <div style="min-width:6px; height:6px; border-radius:50%; background:{tier_color};
-                                            margin-top:0.45rem; flex-shrink:0;"></div>
-                                <div>
-                                    <p style="color:#E8E8F0; font-weight:600; font-size:0.875rem; margin:0 0 0.2rem;">{title}</p>
-                                    <p style="color:#A0A0B0; font-size:0.85rem; line-height:1.6; margin:0;">{desc}</p>
-                                </div>
-                            </div>
-                        </div>
-                    """, unsafe_allow_html=True)
-
-        st.markdown(f"""
-                    <div style="background:{tier_bg}; border:1px solid {tier_border};
-                                border-top:none; border-radius:0 0 14px 14px; padding:1rem 2rem 0.5rem;">
-                    </div>
-                    <div style="background:#13131A; border:1px solid #2A2A3A; border-left:3px solid #FF4B4B;
-                            border-radius:8px; padding:0.85rem 1rem; margin-top:0.5rem;">
-                    <p style="color:#C0C0D0; font-family:'DM Sans',sans-serif; font-size:0.82rem;
-                              line-height:1.5; margin:0;">
-                        <strong>Note:</strong> This tool is for informational purposes only and is not a substitute for professional medical advice, diagnosis, or treatment.
-                    </p>
-                    </div>""", unsafe_allow_html=True)
 
 if __name__ == "__main__":
     run_heart_analysis()
