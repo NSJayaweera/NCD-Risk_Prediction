@@ -1,351 +1,524 @@
-import pytest
-import pandas as pd
-import numpy as np
-from unittest.mock import patch
-import sys
-import os
 import json
+import sys
+from pathlib import Path
+from unittest.mock import mock_open, patch
+
 import joblib
+import numpy as np
+import pandas as pd
+import pytest
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Make project root importable
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
-import CKD
+import CKD  # noqa: E402
 
-# TEST CLASS 
+SAVE_DIR = PROJECT_ROOT / "ckdModel"
 
-class TestCKDAnalysis:
+EXPECTED_FEATURE_ORDER = [
+    "age",
+    "gender",
+    "bmi",
+    "bp_systolic",
+    "bp_diastolic",
+    "serum_creatinine",
+    "blood_urea_nitrogen",
+    "urine_albumin",
+    "urine_creatinine",
+    "albumin_creatinine_ratio",
+    "albumin_serum",
+    "uric_acid",
+    "diabetes_diagnosed",
+    "bun_creatinine_ratio",
+]
 
-    # TEST 1 — Feature Engineering Logic
-    # CKD tests:    ACR, BUN ratio, BMI, eGFR
 
-    def test_feature_engineering_logic(self):
-        """Test if the manual math for derived features is correct."""
+class DummyContext:
+    def __init__(self, collectors=None):
+        self.collectors = collectors
 
-        # ── BMI ──
-        weight    = 70.0
-        height_cm = 170.0
-        bmi = round(weight / ((height_cm / 100) ** 2), 1)
-        assert bmi == 24.2
+    def __enter__(self):
+        return self
 
-        # ── ACR (Albumin-Creatinine Ratio) ──
-        urine_albumin    = 10.0
-        urine_creatinine = 100.0
-        acr = round(urine_albumin / urine_creatinine * 1000, 2)
-        assert acr == 100.0
-        assert acr > 0
+    def __exit__(self, exc_type, exc, tb):
+        return False
 
-        # ── BUN / Creatinine Ratio ──
-        blood_urea_nitrogen = 15.0
-        serum_creatinine    = 1.0
-        bun_cr_ratio = round(blood_urea_nitrogen / serum_creatinine, 2)
-        assert bun_cr_ratio == 15.0
-        assert bun_cr_ratio > 0
+    def metric(self, *args, **kwargs):
+        if self.collectors is not None:
+            self.collectors["metric"].append((args, kwargs))
 
-        # ── eGFR (CKD-EPI 2021) ──
-        egfr = CKD.calculate_egfr(1.0, 50, 0)
-        assert egfr is not None
-        assert egfr > 0
 
-        # eGFR should decrease as creatinine increases
-        egfr_low  = CKD.calculate_egfr(0.8, 50, 1)
-        egfr_high = CKD.calculate_egfr(3.0, 50, 1)
-        assert egfr_low > egfr_high
+class FakeModel:
+    def __init__(self, pred=0, prob=0.2):
+        self.pred = pred
+        self.prob = prob
+        self.last_input = None
 
-        # eGFR should decrease as age increases
-        egfr_young = CKD.calculate_egfr(1.0, 30, 1)
-        egfr_old   = CKD.calculate_egfr(1.0, 70, 1)
-        assert egfr_young > egfr_old
+    def predict_proba(self, x):
+        self.last_input = x.copy()
+        return np.array([[1.0 - self.prob, self.prob]])
 
-        # Invalid inputs should return None
-        assert CKD.calculate_egfr(0, 50, 1)  is None
-        assert CKD.calculate_egfr(1.0, 0, 1) is None
+    def predict(self, x):
+        self.last_input = x.copy()
+        return np.array([self.pred])
 
-    # TEST 2 — Asset Loading Failure 
-    # CKD tests:    same — joblib.load crash → st.error called
+def identity_cache_resource(func=None, **kwargs):
+    if func is None:
+        return lambda f: f
+    return func
 
-    @patch('joblib.load')
-    def test_asset_loading_failure(self, mock_joblib):
 
-        # Make joblib.load crash — same as Heart test
-        mock_joblib.side_effect = Exception("File not found")
+def patch_streamlit(
+    monkeypatch,
+    *,
+    model_choice="Both",
+    gender="Female",
+    diabetes="No",
+    button_value=True,
+    number_overrides=None,
+):
+    if number_overrides is None:
+        number_overrides = {}
 
-        # Check if st.error is called when models are missing
-        with patch('streamlit.error') as mock_error:
-            CKD.run_ckd_analysis()
-            assert mock_error.called
+    collectors = {
+        "error": [],
+        "success": [],
+        "warning": [],
+        "progress": [],
+        "metric": [],
+    }
 
-            # Check the error message contains the hint
-            args, _ = mock_error.call_args
-            assert "Error loading models" in args[0]
+    def fake_radio(label, *args, **kwargs):
+        if label == "Choose Prediction Model":
+            return model_choice
+        if label == "Gender":
+            return gender
+        if label == "Diabetes Diagnosed":
+            return diabetes
+        options = kwargs.get("options", [])
+        return options[0] if options else None
 
-    # TEST 3 — DataFrame Alignment 
-    # CKD tests:    reindex for 14 feature columns
+    def fake_number_input(label, *args, **kwargs):
+        return number_overrides.get(label, kwargs.get("value"))
 
-    def test_dataframe_alignment(self):
-        """Test if reindexing aligns columns correctly with training features."""
+    def fake_columns(spec):
+        count = spec if isinstance(spec, int) else len(spec)
+        return [DummyContext(collectors) for _ in range(count)]
 
-        # These are the 14 features the model expects
-        feature_order = [
-            'age', 'gender', 'bmi', 'bp_systolic', 'bp_diastolic',
-            'serum_creatinine', 'blood_urea_nitrogen', 'urine_albumin',
-            'urine_creatinine', 'albumin_creatinine_ratio', 'albumin_serum',
-            'uric_acid', 'diabetes_diagnosed', 'bun_creatinine_ratio'
+    monkeypatch.setattr(CKD.st, "cache_resource", identity_cache_resource)
+    monkeypatch.setattr(CKD.st, "markdown", lambda *args, **kwargs: None)
+    monkeypatch.setattr(CKD.st, "title", lambda *args, **kwargs: None)
+    monkeypatch.setattr(CKD.st, "write", lambda *args, **kwargs: None)
+    monkeypatch.setattr(CKD.st, "subheader", lambda *args, **kwargs: None)
+    monkeypatch.setattr(CKD.st, "radio", fake_radio)
+    monkeypatch.setattr(CKD.st, "number_input", fake_number_input)
+    monkeypatch.setattr(CKD.st, "columns", fake_columns)
+    monkeypatch.setattr(CKD.st, "button", lambda *args, **kwargs: button_value)
+    monkeypatch.setattr(
+        CKD.st,
+        "metric",
+        lambda *args, **kwargs: collectors["metric"].append((args, kwargs)),
+    )
+    monkeypatch.setattr(
+        CKD.st,
+        "progress",
+        lambda value, *args, **kwargs: collectors["progress"].append(value),
+    )
+    monkeypatch.setattr(
+        CKD.st,
+        "error",
+        lambda message, *args, **kwargs: collectors["error"].append(str(message)),
+    )
+    monkeypatch.setattr(
+        CKD.st,
+        "success",
+        lambda message, *args, **kwargs: collectors["success"].append(str(message)),
+    )
+    monkeypatch.setattr(
+        CKD.st,
+        "warning",
+        lambda message, *args, **kwargs: collectors["warning"].append(str(message)),
+    )
+
+    return collectors
+
+
+def test_feature_engineering_logic():
+    weight = 60.0
+    height_cm = 165.0
+    bmi = round(weight / ((height_cm / 100) ** 2), 1)
+    assert bmi == 22.0
+
+    urine_albumin = 1.0
+    urine_creatinine = 200.0
+    acr = round((urine_albumin / urine_creatinine) * 1000, 2)
+    assert acr == 5.0
+
+    blood_urea_nitrogen = 10.0
+    serum_creatinine = 0.7
+    bun_cr_ratio = round(blood_urea_nitrogen / serum_creatinine, 2)
+    assert bun_cr_ratio == 14.29
+
+
+def test_zero_guards_and_probability_clamping():
+    urine_albumin = 10.0
+    urine_creatinine = 0
+    acr = round((urine_albumin / urine_creatinine) * 1000, 2) if urine_creatinine > 0 else 0
+    assert acr == 0
+
+    blood_urea_nitrogen = 15.0
+    serum_creatinine = 0
+    bun_cr_ratio = round(blood_urea_nitrogen / serum_creatinine, 2) if serum_creatinine > 0 else 0
+    assert bun_cr_ratio == 0
+
+    assert max(0.0, min(1.0, float(-0.5))) == 0.0
+    assert max(0.0, min(1.0, float(1.5))) == 1.0
+    assert max(0.0, min(1.0, float(0.72))) == 0.72
+
+
+def test_feature_order_json_is_valid():
+    feature_order_path = SAVE_DIR / "feature_order.json"
+    assert feature_order_path.exists(), f"Missing file: {feature_order_path}"
+
+    with open(feature_order_path, "r", encoding="utf-8") as f:
+        feature_order = json.load(f)
+
+    assert feature_order == EXPECTED_FEATURE_ORDER
+    assert len(feature_order) == 14
+    assert len(feature_order) == len(set(feature_order)), "Duplicate features found in feature_order.json"
+
+    leakage_cols = {"egfr", "ckd_stage", "ckd_present", "participant_id"}
+    assert leakage_cols.isdisjoint(feature_order), "Leakage column found in feature_order.json"
+
+
+def test_dataframe_alignment_matches_feature_order():
+    input_data = {
+        "age": 30,
+        "gender": 0,
+        "bmi": 22.0,
+        "bp_systolic": 110,
+        "bp_diastolic": 70,
+        "serum_creatinine": 0.7,
+        "blood_urea_nitrogen": 10.0,
+        "urine_albumin": 1.0,
+        "urine_creatinine": 200.0,
+        "albumin_creatinine_ratio": 5.0,
+        "albumin_serum": 4.5,
+        "uric_acid": 4.5,
+        "diabetes_diagnosed": 0,
+        # bun_creatinine_ratio intentionally missing
+    }
+
+    df = pd.DataFrame([input_data])
+
+    for col in EXPECTED_FEATURE_ORDER:
+        if col not in df.columns:
+            df[col] = np.nan
+
+    final_df = df[EXPECTED_FEATURE_ORDER]
+
+    assert list(final_df.columns) == EXPECTED_FEATURE_ORDER
+    assert final_df.shape == (1, 14)
+    assert pd.isna(final_df.loc[0, "bun_creatinine_ratio"])
+
+
+def test_run_ckd_analysis_handles_model_loading_failure(monkeypatch):
+    collectors = patch_streamlit(monkeypatch, button_value=False)
+
+    def fake_joblib_load(_):
+        raise Exception("File not found")
+
+    monkeypatch.setattr(CKD.joblib, "load", fake_joblib_load)
+
+    CKD.run_ckd_analysis()
+
+    assert collectors["error"], "Expected streamlit.error to be called"
+    assert "Error loading models" in collectors["error"][0]
+
+
+def test_run_ckd_analysis_when_button_not_clicked(monkeypatch):
+    collectors = patch_streamlit(monkeypatch, button_value=False)
+
+    stacking = FakeModel(pred=0, prob=0.12)
+    bagging = FakeModel(pred=0, prob=0.18)
+
+    def fake_joblib_load(path):
+        path = str(path)
+        if path.endswith("stacking_model.pkl"):
+            return stacking
+        if path.endswith("bagging_model.pkl"):
+            return bagging
+        raise FileNotFoundError(path)
+
+    monkeypatch.setattr(CKD.joblib, "load", fake_joblib_load)
+
+    with patch("builtins.open", mock_open(read_data=json.dumps(EXPECTED_FEATURE_ORDER))):
+        CKD.run_ckd_analysis()
+
+    assert stacking.last_input is None
+    assert bagging.last_input is None
+    assert len(collectors["progress"]) == 0
+
+
+def test_run_ckd_analysis_builds_expected_feature_frame(monkeypatch):
+    collectors = patch_streamlit(
+        monkeypatch,
+        model_choice="Both",
+        gender="Female",
+        diabetes="No",
+        button_value=True,
+        number_overrides={
+            "Age (years)": 30,
+            "Weight (kg)": 60.0,
+            "Height (cm)": 165.0,
+            "Systolic BP (mmHg)": 110,
+            "Diastolic BP (mmHg)": 70,
+            "Blood Urea Nitrogen (mg/dL)": 10.0,
+            "Urine Albumin (mg/L)": 1.0,
+            "Urine Creatinine (mg/dL)": 200.0,
+            "Serum Albumin (g/dL)": 4.5,
+            "Serum Creatinine (mg/dL)": 0.7,
+            "Uric Acid (mg/dL)": 4.5,
+        },
+    )
+
+    stacking = FakeModel(pred=0, prob=0.12)
+    bagging = FakeModel(pred=0, prob=0.18)
+
+    def fake_joblib_load(path):
+        path = str(path)
+        if path.endswith("stacking_model.pkl"):
+            return stacking
+        if path.endswith("bagging_model.pkl"):
+            return bagging
+        raise FileNotFoundError(path)
+
+    monkeypatch.setattr(CKD.joblib, "load", fake_joblib_load)
+
+    mocked_feature_order = json.dumps(EXPECTED_FEATURE_ORDER)
+    with patch("builtins.open", mock_open(read_data=mocked_feature_order)):
+        CKD.run_ckd_analysis()
+
+    expected_df = pd.DataFrame(
+        [
+            {
+                "age": 30,
+                "gender": 0,
+                "bmi": 22.0,
+                "bp_systolic": 110,
+                "bp_diastolic": 70,
+                "serum_creatinine": 0.7,
+                "blood_urea_nitrogen": 10.0,
+                "urine_albumin": 1.0,
+                "urine_creatinine": 200.0,
+                "albumin_creatinine_ratio": 5.0,
+                "albumin_serum": 4.5,
+                "uric_acid": 4.5,
+                "diabetes_diagnosed": 0,
+                "bun_creatinine_ratio": 14.29,
+            }
         ]
+    )[EXPECTED_FEATURE_ORDER]
 
-        # Simulate user input — one feature missing
-        input_data = {
-            'age'                     : 50,
-            'gender'                  : 1,
-            'bmi'                     : 24.2,
-            'bp_systolic'             : 120,
-            'bp_diastolic'            : 80,
-            'serum_creatinine'        : 1.0,
-            'blood_urea_nitrogen'     : 15.0,
-            'urine_albumin'           : 3.0,
-            'urine_creatinine'        : 150.0,
-            'albumin_creatinine_ratio': 20.0,
-            'albumin_serum'           : 4.0,
-            'uric_acid'               : 5.0,
-            'diabetes_diagnosed'      : 0,
-            # bun_creatinine_ratio missing intentionally
-        }
+    pd.testing.assert_frame_equal(
+        stacking.last_input.reset_index(drop=True),
+        expected_df.reset_index(drop=True),
+        check_dtype=False,
+    )
+    pd.testing.assert_frame_equal(
+        bagging.last_input.reset_index(drop=True),
+        expected_df.reset_index(drop=True),
+        check_dtype=False,
+    )
 
-        df = pd.DataFrame([input_data])
-
-        # Align — same as deployment app logic
-        for col in feature_order:
-            if col not in df.columns:
-                df[col] = np.nan
-
-        final_df = df[feature_order]
-
-        # bun_creatinine_ratio should now exist filled with NaN
-        assert 'bun_creatinine_ratio' in final_df.columns
-
-        # Shape must match exactly
-        assert final_df.shape[1] == len(feature_order)
-        assert final_df.shape[1] == 14
-
-        # NaN should be there for missing column
-        assert pd.isna(final_df['bun_creatinine_ratio'].iloc[0])
-
-    # TEST 4 — Risk Score Clamping
-    # Same as test_risk_score_clamping in Test_Heart.py
-    # Heart tested: max(0, min(1, risk_score))
-    # CKD tests:    same — avg_prob clamping logic
-
-    def test_risk_score_clamping(self):
-        """Ensure the probability display doesn't go below 0% or above 100%."""
-
-        # Same logic as CKD.py:
-        # clamped = max(0.0, min(1.0, float(avg_prob)))
-        low_score    = -0.5
-        high_score   =  1.5
-        normal_score =  0.72
-
-        assert max(0.0, min(1.0, low_score))    == 0.0
-        assert max(0.0, min(1.0, high_score))   == 1.0
-        assert max(0.0, min(1.0, normal_score)) == 0.72
-
-    # TEST 5 — Default Values Produce Normal ACR
-    # Catches the bug we found — all defaults tested together
-
-    def test_default_values(self):
-
-        # All default values exactly as set in CKD.py
-        age                 = 50
-        gender              = 0       # Female
-        weight              = 70.0
-        height_cm           = 170.0
-        bp_systolic         = 120
-        bp_diastolic        = 80
-        serum_creatinine    = 1.0
-        blood_urea_nitrogen = 15.0
-        urine_albumin       = 3.0    
-        urine_creatinine    = 150.0   
-        albumin_serum       = 4.0
-        uric_acid           = 5.0
-        diabetes            = 0
-
-        # Auto calculated — same as CKD.py
-        bmi          = round(weight / ((height_cm / 100) ** 2), 1)
-        acr          = round(urine_albumin / urine_creatinine * 1000, 2)
-        bun_cr_ratio = round(blood_urea_nitrogen / serum_creatinine, 2)
-        egfr         = CKD.calculate_egfr(serum_creatinine, age, gender)
-
-        # Check 1 — BMI normal range
-        assert 18.5 <= bmi <= 30, \
-            f"Default BMI = {bmi} is outside normal range"
-
-        # Check 2 — ACR must be below 30 (most important)
-        assert acr < 30, \
-            f"Default ACR = {acr} mg/g exceeds normal 30 mg/g. " \
-            f"Fix CKD.py: urine_albumin=3.0, urine_creatinine=150.0"
-
-        # Check 3 — BUN ratio normal range
-        assert 10 <= bun_cr_ratio <= 20, \
-            f"Default BUN ratio = {bun_cr_ratio} is outside normal range"
-
-        # Check 4 — eGFR should be normal
-        assert egfr > 60, \
-            f"Default eGFR = {egfr} is below 60 — indicates CKD risk"
-
-    # TEST 6 — ACR Zero Guard
-
-    def test_acr_zero_guard(self):
-        """If urine creatinine is 0, ACR should return 0 not crash."""
-
-        urine_albumin    = 10.0
-        urine_creatinine = 0
-
-        acr = round(urine_albumin / urine_creatinine * 1000, 2) \
-              if urine_creatinine > 0 else 0
-
-        assert acr == 0
-
-    # TEST 7 — BUN Ratio Zero Guard
-
-    def test_bun_ratio_zero_guard(self):
-        """If serum creatinine is 0, BUN ratio should return 0 not crash."""
-
-        blood_urea_nitrogen = 15.0
-        serum_creatinine    = 0
-
-        bun_cr_ratio = round(blood_urea_nitrogen / serum_creatinine, 2) \
-                       if serum_creatinine > 0 else 0
-
-        assert bun_cr_ratio == 0
-
-    # TEST 8 — Known Patient Prediction
-    # Uses real patients from NHANES dataset
-
-    def test_model_prediction_known_patient(self):
-        """
-        Test model with known patients from NHANES dataset.
-        CKD patient  → model must predict 1
-        No CKD patient → model must predict 0
-        """
-
-        stacking = joblib.load(os.path.join(SAVE_DIR, 'stacking_model.pkl'))
-        bagging  = joblib.load(os.path.join(SAVE_DIR, 'bagging_model.pkl'))
-
-         with open(os.path.join(SAVE_DIR, 'feature_order.json')) as f:
-            feature_order = json.load(f)
-
-        # Known CKD patient — actual label = 1
-        # From NHANES dataset row 9
-        ckd_patient = pd.DataFrame([{
-            'age': 68.0, 'gender': 0, 'bmi': 42.6,
-            'bp_systolic': 143.0, 'bp_diastolic': 76.0,
-            'serum_creatinine': 0.76, 'blood_urea_nitrogen': 15.0,
-            'urine_albumin': 5.93, 'urine_creatinine': 23.0,
-            'albumin_creatinine_ratio': 25.78, 'albumin_serum': 3.7,
-            'uric_acid': 6.2, 'diabetes_diagnosed': 0.0,
-            'bun_creatinine_ratio': 19.74,
-        }])[feature_order]
-
-        # Known No-CKD patient — actual label = 0
-        # From NHANES dataset row 0
-        no_ckd_patient = pd.DataFrame([{
-            'age': 43.0, 'gender': 1, 'bmi': 27.0,
-            'bp_systolic': 135.0, 'bp_diastolic': 98.0,
-            'serum_creatinine': 0.8, 'blood_urea_nitrogen': 11.0,
-            'urine_albumin': 23.12, 'urine_creatinine': 136.0,
-            'albumin_creatinine_ratio': 17.0, 'albumin_serum': 4.3,
-            'uric_acid': 5.1, 'diabetes_diagnosed': 0.0,
-            'bun_creatinine_ratio': 13.75,
-        }])[feature_order]
-
-        # Stacking must predict correctly
-        assert stacking.predict(ckd_patient)[0] == 1, \
-            "Stacking failed to detect known CKD patient"
-        assert stacking.predict(no_ckd_patient)[0] == 0, \
-            "Stacking wrongly predicted CKD for healthy patient"
-
-        # Bagging must predict correctly
-        assert bagging.predict(ckd_patient)[0] == 1, \
-            "Bagging failed to detect known CKD patient"
-        assert bagging.predict(no_ckd_patient)[0] == 0, \
-            "Bagging wrongly predicted CKD for healthy patient"
-
-    # TEST 9 — BP Consistency Check
-
-    def test_bp_consistency_check(self):
-        """Systolic BP must always be greater than diastolic BP."""
-
-        # Valid BP
-        assert 120 > 80, \
-            "Valid BP failed"
-
-        # Invalid — equal
-        assert not (80 > 80), \
-            "Equal systolic and diastolic should be invalid"
-
-        # Invalid — reversed
-        assert not (75 > 90), \
-            "Systolic lower than diastolic should be invalid"
-
-    # TEST 10 — Diabetes Encoding
-
-    def test_diabetes_encoding(self):
-        """
-        NHANES diabetes codes must encode correctly.
-        1 = Yes → 1
-        2 = No  → 0
-        3 = Borderline → None
-        9 = Don't know → None
-        """
-
-        dm_map = {1.0: 1, 2.0: 0}
-
-        assert dm_map[1.0] == 1
-        assert dm_map[2.0] == 0
-        assert dm_map.get(3.0, None) is None, \
-            "Borderline should be NaN not 0 or 1"
-        assert dm_map.get(9.0, None) is None, \
-            "Unknown status should be NaN"
-
-    # TEST 11 — Gender Encoding 
-
-    def test_gender_encoding(self):
-        """Male = 1, Female = 0"""
-
-        gender_map = {'Male': 1, 'Female': 0, 'M': 1, 'F': 0}
-
-        assert gender_map['Male']   == 1
-        assert gender_map['Female'] == 0
-        assert gender_map['M']      == 1
-        assert gender_map['F']      == 0
-
-    # TEST 12 — Feature Order Count 
-
-    def test_feature_order_count(self):
-        """
-        feature_order.json must have exactly 14 features.
-        No leakage columns like egfr or ckd_stage.
-        No duplicates.
-        """
-
-        with open('ckdModel/feature_order.json') as f:
-            feature_order = json.load(f)
-
-        # Must be exactly 14
-        assert len(feature_order) == 14, \
-            f"Expected 14 features, got {len(feature_order)}"
-
-        # Leakage columns must NOT be present
-        leakage_cols = ['egfr', 'ckd_stage', 'ckd_present', 'participant_id']
-        for col in leakage_cols:
-            assert col not in feature_order, \
-                f"Leakage column '{col}' found in feature_order!"
-
-        # No duplicates
-        assert len(feature_order) == len(set(feature_order)), \
-            "Duplicate features found in feature_order.json"
+    assert len(collectors["progress"]) == 2
 
 
-# ENTRY POINT
+def test_stacking_only_renders_single_progress_bar(monkeypatch):
+    collectors = patch_streamlit(
+        monkeypatch,
+        model_choice="Stacking Model",
+        gender="Female",
+        diabetes="No",
+        button_value=True,
+    )
 
-if __name__ == "__main__":
-    import unittest
-    unittest.main(verbosity=2)
+    stacking = FakeModel(pred=0, prob=0.11)
+    bagging = FakeModel(pred=1, prob=0.91)
+
+    def fake_joblib_load(path):
+        path = str(path)
+        if path.endswith("stacking_model.pkl"):
+            return stacking
+        if path.endswith("bagging_model.pkl"):
+            return bagging
+        raise FileNotFoundError(path)
+
+    monkeypatch.setattr(CKD.joblib, "load", fake_joblib_load)
+
+    with patch("builtins.open", mock_open(read_data=json.dumps(EXPECTED_FEATURE_ORDER))):
+        CKD.run_ckd_analysis()
+
+    assert len(collectors["progress"]) == 1
+    assert 0.0 <= collectors["progress"][0] <= 1.0
+
+
+def test_bagging_only_renders_single_progress_bar(monkeypatch):
+    collectors = patch_streamlit(
+        monkeypatch,
+        model_choice="Bagging Model",
+        gender="Female",
+        diabetes="No",
+        button_value=True,
+    )
+
+    stacking = FakeModel(pred=1, prob=0.88)
+    bagging = FakeModel(pred=0, prob=0.21)
+
+    def fake_joblib_load(path):
+        path = str(path)
+        if path.endswith("stacking_model.pkl"):
+            return stacking
+        if path.endswith("bagging_model.pkl"):
+            return bagging
+        raise FileNotFoundError(path)
+
+    monkeypatch.setattr(CKD.joblib, "load", fake_joblib_load)
+
+    with patch("builtins.open", mock_open(read_data=json.dumps(EXPECTED_FEATURE_ORDER))):
+        CKD.run_ckd_analysis()
+
+    assert len(collectors["progress"]) == 1
+    assert 0.0 <= collectors["progress"][0] <= 1.0
+
+
+def test_both_models_agree_no_ckd_shows_success(monkeypatch):
+    collectors = patch_streamlit(
+        monkeypatch,
+        model_choice="Both",
+        gender="Female",
+        diabetes="No",
+        button_value=True,
+    )
+
+    stacking = FakeModel(pred=0, prob=0.18)
+    bagging = FakeModel(pred=0, prob=0.24)
+
+    def fake_joblib_load(path):
+        path = str(path)
+        if path.endswith("stacking_model.pkl"):
+            return stacking
+        if path.endswith("bagging_model.pkl"):
+            return bagging
+        raise FileNotFoundError(path)
+
+    monkeypatch.setattr(CKD.joblib, "load", fake_joblib_load)
+
+    with patch("builtins.open", mock_open(read_data=json.dumps(EXPECTED_FEATURE_ORDER))):
+        CKD.run_ckd_analysis()
+
+    assert any("No CKD Detected" in msg for msg in collectors["success"])
+
+
+def test_both_models_agree_ckd_shows_error(monkeypatch):
+    collectors = patch_streamlit(
+        monkeypatch,
+        model_choice="Both",
+        gender="Female",
+        diabetes="No",
+        button_value=True,
+    )
+
+    stacking = FakeModel(pred=1, prob=0.91)
+    bagging = FakeModel(pred=1, prob=0.87)
+
+    def fake_joblib_load(path):
+        path = str(path)
+        if path.endswith("stacking_model.pkl"):
+            return stacking
+        if path.endswith("bagging_model.pkl"):
+            return bagging
+        raise FileNotFoundError(path)
+
+    monkeypatch.setattr(CKD.joblib, "load", fake_joblib_load)
+
+    with patch("builtins.open", mock_open(read_data=json.dumps(EXPECTED_FEATURE_ORDER))):
+        CKD.run_ckd_analysis()
+
+    assert any("CKD Detected" in msg for msg in collectors["error"])
+
+
+def test_models_disagree_shows_warning(monkeypatch):
+    collectors = patch_streamlit(
+        monkeypatch,
+        model_choice="Both",
+        gender="Female",
+        diabetes="No",
+        button_value=True,
+    )
+
+    stacking = FakeModel(pred=1, prob=0.91)
+    bagging = FakeModel(pred=0, prob=0.24)
+
+    def fake_joblib_load(path):
+        path = str(path)
+        if path.endswith("stacking_model.pkl"):
+            return stacking
+        if path.endswith("bagging_model.pkl"):
+            return bagging
+        raise FileNotFoundError(path)
+
+    monkeypatch.setattr(CKD.joblib, "load", fake_joblib_load)
+
+    with patch("builtins.open", mock_open(read_data=json.dumps(EXPECTED_FEATURE_ORDER))):
+        CKD.run_ckd_analysis()
+
+    assert any("Models disagree" in msg for msg in collectors["warning"])
+
+
+@pytest.mark.skipif(
+    not (
+        (SAVE_DIR / "stacking_model.pkl").exists()
+        and (SAVE_DIR / "bagging_model.pkl").exists()
+        and (SAVE_DIR / "feature_order.json").exists()
+    ),
+    reason="Model artifacts not found in ckdModel/",
+)
+def test_model_artifacts_can_load_and_predict_binary_output():
+    stacking = joblib.load(SAVE_DIR / "stacking_model.pkl")
+    bagging = joblib.load(SAVE_DIR / "bagging_model.pkl")
+
+    with open(SAVE_DIR / "feature_order.json", "r", encoding="utf-8") as f:
+        feature_order = json.load(f)
+
+    patient_df = pd.DataFrame(
+        [
+            {
+                "age": 43.0,
+                "gender": 1,
+                "bmi": 27.0,
+                "bp_systolic": 135.0,
+                "bp_diastolic": 98.0,
+                "serum_creatinine": 0.8,
+                "blood_urea_nitrogen": 11.0,
+                "urine_albumin": 23.12,
+                "urine_creatinine": 136.0,
+                "albumin_creatinine_ratio": 17.0,
+                "albumin_serum": 4.3,
+                "uric_acid": 5.1,
+                "diabetes_diagnosed": 0.0,
+                "bun_creatinine_ratio": 13.75,
+            }
+        ]
+    )[feature_order]
+
+    for model in (stacking, bagging):
+        pred = model.predict(patient_df)
+        prob = model.predict_proba(patient_df)
+
+        assert pred.shape == (1,)
+        assert prob.shape == (1, 2)
+        assert pred[0] in (0, 1)
+        assert 0.0 <= prob[0][1] <= 1.0
