@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -318,12 +319,13 @@ def run_ckd_analysis():
 
     with col2:
         st.subheader("Laboratory Values")
-        serum_creatinine    = st.number_input("Serum Creatinine (mg/dL)", min_value=0.1, max_value=20.0, value=1.0, step=0.1)
-        blood_urea_nitrogen = st.number_input("Blood Urea Nitrogen (mg/dL)", min_value=1.0, max_value=200.0, value=15.0, step=0.5)
-        urine_albumin       = st.number_input("Urine Albumin (mg/L)", min_value=0.0, max_value=9000.0, value=10.0, step=1.0)
-        urine_creatinine    = st.number_input("Urine Creatinine (mg/dL)", min_value=1.0, max_value=1200.0, value=100.0, step=1.0)
-        albumin_serum       = st.number_input("Serum Albumin (g/dL)", min_value=0.5, max_value=8.0, value=4.0, step=0.1)
-        uric_acid           = st.number_input("Uric Acid (mg/dL)", min_value=0.5, max_value=25.0, value=5.0, step=0.1)
+        blood_urea_nitrogen = st.number_input("Blood Urea Nitrogen (mg/dL)", min_value=1.0, max_value=200.0, value=10.0, step=0.5)
+        urine_albumin = st.number_input("Urine Albumin (mg/L)", min_value=0.0, max_value=9000.0, value=1.0, step=1.0)
+        urine_creatinine = st.number_input("Urine Creatinine (mg/dL)", min_value=1.0, max_value=1200.0, value=200.0, step=1.0)
+        albumin_serum = st.number_input("Serum Albumin (g/dL)", min_value=0.5, max_value=8.0, value=4.5, step=0.1)
+        serum_creatinine = st.number_input("Serum Creatinine (mg/dL)", min_value=0.1, max_value=20.0, value=0.7, step=0.1)
+        uric_acid = st.number_input("Uric Acid (mg/dL)", min_value=0.5, max_value=25.0, value=4.5, step=0.1)
+        age = st.number_input("Age (years)", min_value=18, max_value=120, value=30)
 
     # ── Auto-calculated values ──
     st.markdown("---")
