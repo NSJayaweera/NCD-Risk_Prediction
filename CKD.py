@@ -325,7 +325,6 @@ def run_ckd_analysis():
         albumin_serum = st.number_input("Serum Albumin (g/dL)", min_value=0.5, max_value=8.0, value=4.5, step=0.1)
         serum_creatinine = st.number_input("Serum Creatinine (mg/dL)", min_value=0.1, max_value=20.0, value=0.7, step=0.1)
         uric_acid = st.number_input("Uric Acid (mg/dL)", min_value=0.5, max_value=25.0, value=4.5, step=0.1)
-        age = st.number_input("Age (years)", min_value=18, max_value=120, value=30)
 
     # ── Auto-calculated values ──
     st.markdown("---")
