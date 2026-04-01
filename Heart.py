@@ -1,5 +1,4 @@
 import streamlit as st
-import streamlit.components.v1 as components
 import pandas as pd
 import numpy as np
 import joblib
@@ -151,6 +150,37 @@ def run_heart_analysis():
                 color: #C0C0D0 !important;
             }
 
+            div[data-testid="stSuccess"] {
+                background-color: rgba(40,167,69,0.08) !important;
+                border: 1px solid rgba(40,167,69,0.3) !important;
+                border-left: 3px solid #28a745 !important;
+                border-radius: 8px !important;
+            }
+
+            div[data-testid="stError"] {
+                background-color: rgba(255,75,75,0.08) !important;
+                border: 1px solid rgba(255,75,75,0.3) !important;
+                border-left: 3px solid #FF4B4B !important;
+                border-radius: 8px !important;
+            }
+
+            div[data-testid="stWarning"] {
+                background-color: rgba(240,165,0,0.08) !important;
+                border: 1px solid rgba(240,165,0,0.3) !important;
+                border-left: 3px solid #f0a500 !important;
+                border-radius: 8px !important;
+            }
+
+            /* ── Progress bar ── */
+            div[data-testid="stProgressBar"] > div > div {
+                background-color: #FF4B4B !important;
+            }
+
+            div[data-testid="stProgressBar"] > div {
+                background-color: #1E1E2E !important;
+                border-radius: 4px !important;
+            }
+
             /* ── Column Sections ── */
             div[data-testid="column"] {
                 background-color: #0D0D14;
@@ -238,7 +268,7 @@ def run_heart_analysis():
     # Model Selection Radio
     selected_model_name = st.radio(
         "Choose Analysis Algorithm",
-        options=["Gradient Boosting", "CatBoost"],
+        options=["Gradient Boosting", "CatBoost", "Both"],
         horizontal=True,
         help="Select the machine learning model you wish to use for this specific assessment."
     )
@@ -340,23 +370,36 @@ def run_heart_analysis():
         # Align with the columns the models expect
         input_final = input_final.reindex(columns=model_columns, fill_value=0)
 
-        # Get the selected model and predict
-        model = models_dict[selected_model_name]
-        prediction = model.predict(input_final)[0]
+        # Run predictions for both models upfront
+        gbr_raw   = models_dict["Gradient Boosting"].predict(input_final)[0]
+        cat_raw   = models_dict["CatBoost"].predict(input_final)[0]
+        gbr_score = max(0.0, min(1.0, 1 - gbr_raw))
+        cat_score = max(0.0, min(1.0, 1 - cat_raw))
+        gbr_pred  = 1 if gbr_score > 0.5 else 0
+        cat_pred  = 1 if cat_score > 0.5 else 0
 
-        # Score interpretation
-        risk_score = 1 - prediction
+        # ── Determine what to show based on model selection ──
+        if selected_model_name == "Gradient Boosting":
+            results = [("Gradient Boosting", gbr_score, gbr_pred)]
+        elif selected_model_name == "CatBoost":
+            results = [("CatBoost", cat_score, cat_pred)]
+        else:
+            results = [
+                ("Gradient Boosting", gbr_score, gbr_pred),
+                ("CatBoost",          cat_score, cat_pred),
+            ]
 
-        # Display Result
-        score_color = "#28a745" if risk_score <= 0.5 else "#FF4B4B"
-        border_color = score_color
-        badge_bg = "rgba(40,167,69,0.15)" if risk_score <= 0.5 else "rgba(255,75,75,0.15)"
-        badge_label = "LOW RISK" if risk_score <= 0.5 else "HIGH RISK"
+        # ── Result cards ──
+        if len(results) == 1:
+            name, risk_score, pred = results[0]
+            score_color = "#28a745" if pred == 0 else "#FF4B4B"
+            badge_bg    = "rgba(40,167,69,0.15)" if pred == 0 else "rgba(255,75,75,0.15)"
+            badge_label = "LOW RISK" if pred == 0 else "HIGH RISK"
 
-        st.markdown(f"""
-                <div class="result-container" style="border: 1px solid {border_color}33; box-shadow: 0 0 40px {border_color}22;">
+            st.markdown(f"""
+                <div class="result-container" style="border: 1px solid {score_color}33; box-shadow: 0 0 40px {score_color}22;">
                     <p style="color: #808090; font-family: 'Space Mono', monospace; font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 0.5rem;">
-                        Analysis by {selected_model_name}
+                        Analysis by {name}
                     </p>
                     <span class="risk-badge" style="background:{badge_bg}; color:{score_color}; border: 1px solid {score_color}44;">
                         {badge_label}
@@ -365,19 +408,59 @@ def run_heart_analysis():
                         Estimated Cardiovascular Risk
                     </h3>
                     <div style="font-family: 'Space Mono', monospace; color: {score_color}; font-size: 5rem; font-weight: 700; line-height: 1; margin: 0.5rem 0 1rem;">
-                        {max(0, min(1, risk_score)):.1%}
+                        {risk_score:.1%}
                     </div>
                     <p style="color: #A0A0B0; font-size: 0.875rem; max-width: 420px; margin: 0 auto; line-height: 1.6;">
-                        {"High probability of health issues detected. Please consult a specialist promptly." if risk_score > 0.5
-        else "Lower relative risk detected based on the provided clinical markers."}
+                        {"High probability of health issues detected. Please consult a specialist promptly." if pred == 1
+                        else "Lower relative risk detected based on the provided clinical markers."}
                     </p>
                 </div>
-                """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
+
+            st.progress(float(risk_score))
+
+        else:
+            res_cols = st.columns(2)
+            for i, (name, risk_score, pred) in enumerate(results):
+                score_color = "#28a745" if pred == 0 else "#FF4B4B"
+                badge_bg    = "rgba(40,167,69,0.15)" if pred == 0 else "rgba(255,75,75,0.15)"
+                badge_label = "LOW RISK" if pred == 0 else "HIGH RISK"
+                with res_cols[i]:
+                    st.markdown(f"""
+                        <div style="padding:1.75rem 1.5rem; border-radius:14px;
+                                    background:linear-gradient(135deg,#13131A 0%,#0F0F18 100%);
+                                    border:1px solid {score_color}33; box-shadow:0 0 30px {score_color}18;
+                                    text-align:center; margin-bottom:0.75rem;">
+                            <p style="font-family:'Space Mono',monospace; color:#808090; font-size:0.65rem;
+                                      letter-spacing:0.15em; text-transform:uppercase; margin:0 0 0.4rem;">
+                                {name}
+                            </p>
+                            <span class="risk-badge" style="background:{badge_bg}; color:{score_color}; border:1px solid {score_color}44;">
+                                {badge_label}
+                            </span>
+                            <div style="font-family:'Space Mono',monospace; color:{score_color};
+                                        font-size:3.5rem; font-weight:700; line-height:1; margin:0.4rem 0 0.75rem;">
+                                {risk_score:.1%}
+                            </div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    st.progress(float(risk_score))
+
+            # ── Agreement banner ──
+            st.markdown("---")
+            if gbr_pred == cat_pred:
+                if gbr_pred == 1:
+                    st.error("Both models agree: **High Risk Detected** — Clinical evaluation is recommended.")
+                else:
+                    st.success("Both models agree: **Low Risk Detected**")
+            else:
+                st.warning("Models disagree — Further clinical evaluation is recommended.")
 
         st.markdown("---")
 
-        # Tiered guidance based on risk score
-        clamped = max(0, min(1, risk_score))
+        # Tiered guidance based on average risk score across selected models
+        avg_score = sum(s for _, s, _ in results) / len(results)
+        clamped   = max(0.0, min(1.0, float(avg_score)))
 
         if clamped < 0.30:
             tier_icon = "✅"
