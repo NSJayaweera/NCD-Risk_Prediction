@@ -119,18 +119,24 @@ def get_user_inputs():
 
     if gender == "Male":
         model_display_name = st.radio(
-            "Select Prediction Model", options=list(MALE_MODELS.keys()),
+            "Select Prediction Model", options=list(MALE_MODELS.keys()) + ["Both"],
             horizontal=True,
             help="Choose which trained male model to use for prediction."
         )
-        selected_model_key = MALE_MODELS[model_display_name]
+        if model_display_name == "Both":
+            selected_model_keys = list(MALE_MODELS.values())
+        else:
+            selected_model_keys = [MALE_MODELS[model_display_name]]
     else:
         model_display_name = st.radio(
-            "Select Prediction Model", options=list(FEMALE_MODELS.keys()),
+            "Select Prediction Model", options=list(FEMALE_MODELS.keys()) + ["Both"],
             horizontal=True,
             help="Choose which trained female model to use for prediction."
         )
-        selected_model_key = FEMALE_MODELS[model_display_name]
+        if model_display_name == "Both":
+            selected_model_keys = list(FEMALE_MODELS.values())
+        else:
+            selected_model_keys = [FEMALE_MODELS[model_display_name]]
 
     st.markdown("---")
 
@@ -191,17 +197,18 @@ def get_user_inputs():
         'Physical Activity': physical_activity, 'Smoking': smoking, 'Alcohol Consumption': alcohol,
         'Medical Conditions': medical_conditions, 'Medications': medications,
         'Prior Fractures': prior_fractures,
-        '_selected_model_key': selected_model_key,
+        '_selected_model_keys': selected_model_keys,
         '_model_display_name': model_display_name,
     }
 
 
-def make_prediction(user_inputs, all_models, label_encoders, scaler):
-    selected_model_key = user_inputs.pop('_selected_model_key')
-    user_inputs.pop('_model_display_name', None)
+def make_prediction(user_inputs, model_key, all_models, label_encoders, scaler):
+    """Run prediction for a single model key using a copy of user_inputs."""
+    # Work on a clean copy — strip internal keys
+    raw = {k: v for k, v in user_inputs.items() if not k.startswith('_')}
 
     model_input = {}
-    for col, value in user_inputs.items():
+    for col, value in raw.items():
         if col in VALUE_MAPPING:
             model_input[col] = VALUE_MAPPING[col].get(value, value)
         else:
@@ -225,7 +232,7 @@ def make_prediction(user_inputs, all_models, label_encoders, scaler):
     scaled_array = scaler.transform(df_input)
     df_scaled = pd.DataFrame(scaled_array, columns=expected_features)
 
-    model = all_models[selected_model_key]
+    model = all_models[model_key]
     prediction = model.predict(df_scaled)[0]
 
     if hasattr(model, 'predict_proba'):
@@ -325,6 +332,36 @@ def run_osteoporosis_analysis():
             color: #C0C0D0 !important;
         }
 
+        div[data-testid="stSuccess"] {
+            background-color: rgba(40,167,69,0.08) !important;
+            border: 1px solid rgba(40,167,69,0.3) !important;
+            border-left: 3px solid #28a745 !important;
+            border-radius: 8px !important;
+        }
+
+        div[data-testid="stError"] {
+            background-color: rgba(255,75,75,0.08) !important;
+            border: 1px solid rgba(255,75,75,0.3) !important;
+            border-left: 3px solid #FF4B4B !important;
+            border-radius: 8px !important;
+        }
+
+        div[data-testid="stWarning"] {
+            background-color: rgba(240,165,0,0.08) !important;
+            border: 1px solid rgba(240,165,0,0.3) !important;
+            border-left: 3px solid #f0a500 !important;
+            border-radius: 8px !important;
+        }
+
+        div[data-testid="stProgressBar"] > div > div {
+            background-color: #FF4B4B !important;
+        }
+
+        div[data-testid="stProgressBar"] > div {
+            background-color: #1E1E2E !important;
+            border-radius: 4px !important;
+        }
+
         hr { border: none !important; border-top: 1px solid #1E1E2E !important; margin: 1.5rem 0 !important; }
 
         div[data-testid="column"] {
@@ -368,8 +405,15 @@ def run_osteoporosis_analysis():
     with st.container():
         user_inputs = get_user_inputs()
 
-    model_name = user_inputs.get('_model_display_name', '')
-    gender = user_inputs.get('Gender', '')
+    model_name      = user_inputs.get('_model_display_name', '')
+    gender          = user_inputs.get('Gender', '')
+    selected_keys   = user_inputs.get('_selected_model_keys', [])
+    show_both       = model_name == "Both"
+
+    # Resolve display names for each key
+    all_display_names = {**MALE_MODELS, **FEMALE_MODELS}
+    key_to_display = {v: k for k, v in all_display_names.items()}
+
     st.caption(f"Using **{model_name}** for {gender} prediction")
 
     st.markdown("---")
@@ -377,58 +421,112 @@ def run_osteoporosis_analysis():
     if st.button("Calculate Osteoporosis Risk"):
         try:
             raw_inputs_copy = {k: v for k, v in user_inputs.items() if not k.startswith('_')}
-            prediction, risk_score = make_prediction(user_inputs, all_models, label_encoders, scaler)
 
-            # Result card
-            is_positive = prediction == 1
-            score_color = "#FF4B4B" if is_positive else "#28a745"
-            badge_bg = "rgba(255,75,75,0.15)" if is_positive else "rgba(40,167,69,0.15)"
-            badge_label = "OSTEOPOROSIS INDICATED" if is_positive else "LOW RISK"
-            prediction_label = "Osteoporosis" if is_positive else "No Osteoporosis"
+            # Run all selected models
+            results = []
+            for key in selected_keys:
+                pred, score = make_prediction(user_inputs, key, all_models, label_encoders, scaler)
+                results.append((key_to_display.get(key, key), pred, score))
 
-            st.markdown(f"""
-                <div style="padding:2.5rem 2rem; border-radius:16px;
-                     background:linear-gradient(135deg,#13131A 0%,#0F0F18 100%);
-                     border:1px solid {score_color}33;
-                     box-shadow:0 0 40px {score_color}22;
-                     text-align:center; position:relative; overflow:hidden; margin-bottom:1rem;">
-                    <p style="font-family:'Space Mono',monospace; color:#808090; font-size:0.7rem;
-                              letter-spacing:0.15em; text-transform:uppercase; margin:0 0 0.5rem;">
-                        Analysis by {model_name}
-                    </p>
-                    <span style="display:inline-block; padding:4px 14px; border-radius:20px;
-                                 font-family:'Space Mono',monospace; font-size:0.7rem;
-                                 letter-spacing:0.08em; text-transform:uppercase; margin-bottom:1rem;
-                                 background:{badge_bg}; color:{score_color}; border:1px solid {score_color}44;">
-                        {badge_label}
-                    </span>
-                    <h3 style="color:#808090 !important; font-family:'DM Sans',sans-serif !important;
-                               font-size:0.8rem !important; font-weight:500; letter-spacing:0.12em;
-                               text-transform:uppercase; margin-bottom:0.25rem; border:none !important; padding:0 !important;">
-                        Estimated Osteoporosis Risk
-                    </h3>
-                    <div style="font-family:'Space Mono',monospace; color:{score_color};
-                                font-size:5rem; font-weight:700; line-height:1; margin:0.5rem 0 1rem;">
-                        {risk_score*100:.1f}%
+            # ── Result cards ──
+            if len(results) == 1:
+                name, prediction, risk_score = results[0]
+                is_positive  = prediction == 1
+                score_color  = "#FF4B4B" if is_positive else "#28a745"
+                badge_bg     = "rgba(255,75,75,0.15)" if is_positive else "rgba(40,167,69,0.15)"
+                badge_label  = "OSTEOPOROSIS INDICATED" if is_positive else "LOW RISK"
+
+                st.markdown(f"""
+                    <div style="padding:2.5rem 2rem; border-radius:16px;
+                         background:linear-gradient(135deg,#13131A 0%,#0F0F18 100%);
+                         border:1px solid {score_color}33;
+                         box-shadow:0 0 40px {score_color}22;
+                         text-align:center; position:relative; overflow:hidden; margin-bottom:1rem;">
+                        <p style="font-family:'Space Mono',monospace; color:#808090; font-size:0.7rem;
+                                  letter-spacing:0.15em; text-transform:uppercase; margin:0 0 0.5rem;">
+                            Analysis by {name}
+                        </p>
+                        <span style="display:inline-block; padding:4px 14px; border-radius:20px;
+                                     font-family:'Space Mono',monospace; font-size:0.7rem;
+                                     letter-spacing:0.08em; text-transform:uppercase; margin-bottom:1rem;
+                                     background:{badge_bg}; color:{score_color}; border:1px solid {score_color}44;">
+                            {badge_label}
+                        </span>
+                        <h3 style="color:#808090 !important; font-family:'DM Sans',sans-serif !important;
+                                   font-size:0.8rem !important; font-weight:500; letter-spacing:0.12em;
+                                   text-transform:uppercase; margin-bottom:0.25rem; border:none !important; padding:0 !important;">
+                            Estimated Osteoporosis Risk
+                        </h3>
+                        <div style="font-family:'Space Mono',monospace; color:{score_color};
+                                    font-size:5rem; font-weight:700; line-height:1; margin:0.5rem 0 1rem;">
+                            {risk_score*100:.1f}%
+                        </div>
+                        <p style="color:#A0A0B0; font-size:0.875rem; max-width:420px; margin:0 auto; line-height:1.6;">
+                            {f"These results suggest signs worth discussing with your doctor. Early action makes a big difference."
+                              if is_positive else
+                              "Your bone health indicators look reassuring based on the provided information."}
+                        </p>
                     </div>
-                    <p style="color:#A0A0B0; font-size:0.875rem; max-width:420px; margin:0 auto; line-height:1.6;">
-                        {f"These results suggest signs worth discussing with your doctor. Early action makes a big difference."
-                          if is_positive else
-                          "Your bone health indicators look reassuring based on the provided information."}
-                    </p>
-                </div>
-            """, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
+
+                st.progress(float(risk_score))
+
+            else:
+                res_cols = st.columns(2)
+                for i, (name, prediction, risk_score) in enumerate(results):
+                    is_positive = prediction == 1
+                    score_color = "#FF4B4B" if is_positive else "#28a745"
+                    badge_bg    = "rgba(255,75,75,0.15)" if is_positive else "rgba(40,167,69,0.15)"
+                    badge_label = "OSTEOPOROSIS INDICATED" if is_positive else "LOW RISK"
+                    with res_cols[i]:
+                        st.markdown(f"""
+                            <div style="padding:1.75rem 1.5rem; border-radius:14px;
+                                        background:linear-gradient(135deg,#13131A 0%,#0F0F18 100%);
+                                        border:1px solid {score_color}33; box-shadow:0 0 30px {score_color}18;
+                                        text-align:center; margin-bottom:0.75rem;">
+                                <p style="font-family:'Space Mono',monospace; color:#808090; font-size:0.65rem;
+                                          letter-spacing:0.15em; text-transform:uppercase; margin:0 0 0.4rem;">
+                                    {name}
+                                </p>
+                                <span style="display:inline-block; padding:4px 14px; border-radius:20px;
+                                             font-family:'Space Mono',monospace; font-size:0.7rem;
+                                             letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.75rem;
+                                             background:{badge_bg}; color:{score_color}; border:1px solid {score_color}44;">
+                                    {badge_label}
+                                </span>
+                                <div style="font-family:'Space Mono',monospace; color:{score_color};
+                                            font-size:3.5rem; font-weight:700; line-height:1; margin:0.4rem 0 0.75rem;">
+                                    {risk_score*100:.1f}%
+                                </div>
+                            </div>
+                        """, unsafe_allow_html=True)
+                        st.progress(float(risk_score))
+
+                # ── Agreement banner ──
+                st.markdown("---")
+                pred_a = results[0][1]
+                pred_b = results[1][1]
+                if pred_a == pred_b:
+                    if pred_a == 1:
+                        st.error("Both models agree: **Osteoporosis Indicated** — Clinical evaluation is recommended.")
+                    else:
+                        st.success("Both models agree: **Low Risk Detected**")
+                else:
+                    st.warning("Models disagree — Further clinical evaluation is recommended.")
 
             st.markdown("---")
 
-            # Tiered guidance
-            clamped = max(0.0, min(1.0, float(risk_score)))
+            # Tiered guidance — average risk score across all selected models
+            avg_score   = sum(s for _, _, s in results) / len(results)
+            avg_pred    = results[0][1] if len(results) == 1 else (1 if sum(p for _, p, _ in results) > len(results) / 2 else 0)
+            is_positive = avg_pred == 1
+            clamped     = max(0.0, min(1.0, float(avg_score)))
 
             if not is_positive and clamped < 0.40:
-                tier_icon = "✅"
-                tier_title = "Your bone health indicators look good"
-                tier_color = "#28a745"
-                tier_bg = "rgba(40,167,69,0.07)"
+                tier_icon   = "✅"
+                tier_title  = "Your bone health indicators look good"
+                tier_color  = "#28a745"
+                tier_bg     = "rgba(40,167,69,0.07)"
                 tier_border = "rgba(40,167,69,0.3)"
                 steps = [
                     ("Keep up your calcium intake",
@@ -441,10 +539,10 @@ def run_osteoporosis_analysis():
                      "Even with a low risk score, a bone density check (DXA scan) is recommended for women over 50 and men over 65 as part of routine care."),
                 ]
             elif not is_positive and clamped < 0.65:
-                tier_icon = "🟡"
-                tier_title = "A few areas worth keeping an eye on"
-                tier_color = "#f0a500"
-                tier_bg = "rgba(240,165,0,0.07)"
+                tier_icon   = "🟡"
+                tier_title  = "A few areas worth keeping an eye on"
+                tier_color  = "#f0a500"
+                tier_bg     = "rgba(240,165,0,0.07)"
                 tier_border = "rgba(240,165,0,0.3)"
                 steps = [
                     ("Talk to your doctor at your next visit",
@@ -460,10 +558,10 @@ def run_osteoporosis_analysis():
                      "Small consistent changes add up significantly over time."),
                 ]
             else:
-                tier_icon = "🔴"
-                tier_title = "We recommend speaking with a healthcare professional"
-                tier_color = "#FF4B4B"
-                tier_bg = "rgba(255,75,75,0.07)"
+                tier_icon   = "🔴"
+                tier_title  = "We recommend speaking with a healthcare professional"
+                tier_color  = "#FF4B4B"
+                tier_bg     = "rgba(255,75,75,0.07)"
                 tier_border = "rgba(255,75,75,0.3)"
                 steps = [
                     ("Book an appointment with your doctor",
