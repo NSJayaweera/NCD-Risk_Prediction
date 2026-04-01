@@ -139,13 +139,44 @@ def run_diabetes_analysis():
             margin: 1.5rem 0 !important;
         }
 
-        /* ── Info Box ── */
+        /* ── Info / Success / Error / Warning boxes ── */
         div[data-testid="stInfo"] {
             background-color: #13131A !important;
             border: 1px solid #2A2A3A !important;
             border-left: 3px solid #FF4B4B !important;
             border-radius: 8px !important;
             color: #C0C0D0 !important;
+        }
+
+        div[data-testid="stSuccess"] {
+            background-color: rgba(40,167,69,0.08) !important;
+            border: 1px solid rgba(40,167,69,0.3) !important;
+            border-left: 3px solid #28a745 !important;
+            border-radius: 8px !important;
+        }
+
+        div[data-testid="stError"] {
+            background-color: rgba(255,75,75,0.08) !important;
+            border: 1px solid rgba(255,75,75,0.3) !important;
+            border-left: 3px solid #FF4B4B !important;
+            border-radius: 8px !important;
+        }
+
+        div[data-testid="stWarning"] {
+            background-color: rgba(240,165,0,0.08) !important;
+            border: 1px solid rgba(240,165,0,0.3) !important;
+            border-left: 3px solid #f0a500 !important;
+            border-radius: 8px !important;
+        }
+
+        /* ── Progress bar ── */
+        div[data-testid="stProgressBar"] > div > div {
+            background-color: #FF4B4B !important;
+        }
+
+        div[data-testid="stProgressBar"] > div {
+            background-color: #1E1E2E !important;
+            border-radius: 4px !important;
         }
 
         /* ── Column Sections ── */
@@ -227,11 +258,10 @@ def run_diabetes_analysis():
     # Model Selection in Main Area
     selected_model_name = st.radio(
         "Select Prediction Model",
-        options=list(models.keys()),
+        options=list(models.keys()) + ["Both"],
         horizontal=True,
         help="Choose between the top two performing models."
     )
-    model = models[selected_model_name]
 
     st.markdown("---")
 
@@ -273,7 +303,6 @@ def run_diabetes_analysis():
     st.markdown("---")
 
     if st.button("Calculate Diabetes Risk"):
-        # Features: ['blood_glucose', 'physical_activity', 'diet', 'medication_adherence', 'stress_level', 'sleep_hours', 'hydration_level', 'bmi']
         input_dict = {
             'blood_glucose': blood_glucose,
             'physical_activity': physical_activity,
@@ -287,51 +316,101 @@ def run_diabetes_analysis():
 
         df = pd.DataFrame([input_dict])
 
-        # Scale the features
         try:
-            # Reorder columns to match scaler's expected input
             feature_order = ['blood_glucose', 'physical_activity', 'diet', 'medication_adherence',
                              'stress_level', 'sleep_hours', 'hydration_level', 'bmi']
             df = df[feature_order]
-
             scaled_features = scaler.transform(df)
 
-            # Predict
-            if hasattr(model, "predict_proba"):
-                prob = model.predict_proba(scaled_features)[0][1]  # Probability of class 1 (Diabetes/High Risk)
-                risk_score = prob
+            # Helper to get risk score for a single model
+            def get_risk(model):
+                if hasattr(model, "predict_proba"):
+                    return float(model.predict_proba(scaled_features)[0][1])
+                else:
+                    return float(model.predict(scaled_features)[0])
+
+            # Build results list based on selection
+            if selected_model_name == "Both":
+                results = [(name, get_risk(m)) for name, m in models.items()]
             else:
-                # If model doesn't support predict_proba, use predict
-                risk_score = float(model.predict(scaled_features)[0])
+                results = [(selected_model_name, get_risk(models[selected_model_name]))]
 
-            score_color = "#28a745" if risk_score <= 0.5 else "#FF4B4B"
-            badge_bg = "rgba(40,167,69,0.15)" if risk_score <= 0.5 else "rgba(255,75,75,0.15)"
-            badge_label = "LOW RISK" if risk_score <= 0.5 else "HIGH RISK"
+            # Attach binary predictions (>0.5 = high risk)
+            results_with_pred = [(name, score, 1 if score > 0.5 else 0) for name, score in results]
 
-            st.markdown(f"""
-                <div class="result-container" style="border: 1px solid {score_color}33; box-shadow: 0 0 40px {score_color}22;">
-                    <p style="color: #808090; font-family: 'Space Mono', monospace; font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 0.5rem;">
-                        Analysis by {selected_model_name}
-                    </p>
-                    <span class="risk-badge" style="background:{badge_bg}; color:{score_color}; border: 1px solid {score_color}44;">
-                        {badge_label}
-                    </span>
-                    <h3 style="color: #808090; font-family: 'DM Sans', sans-serif; font-size: 0.8rem; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 0.25rem; border: none !important; padding: 0 !important;">
-                        Estimated Diabetes Risk
-                    </h3>
-                    <div style="font-family: 'Space Mono', monospace; color: {score_color}; font-size: 5rem; font-weight: 700; line-height: 1; margin: 0.5rem 0 1rem;">
-                        {risk_score:.1%}
+            # ── Result cards ──
+            if len(results_with_pred) == 1:
+                name, risk_score, pred = results_with_pred[0]
+                score_color = "#28a745" if pred == 0 else "#FF4B4B"
+                badge_bg    = "rgba(40,167,69,0.15)" if pred == 0 else "rgba(255,75,75,0.15)"
+                badge_label = "LOW RISK" if pred == 0 else "HIGH RISK"
+
+                st.markdown(f"""
+                    <div class="result-container" style="border: 1px solid {score_color}33; box-shadow: 0 0 40px {score_color}22;">
+                        <p style="color: #808090; font-family: 'Space Mono', monospace; font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 0.5rem;">
+                            Analysis by {name}
+                        </p>
+                        <span class="risk-badge" style="background:{badge_bg}; color:{score_color}; border: 1px solid {score_color}44;">
+                            {badge_label}
+                        </span>
+                        <h3 style="color: #808090; font-family: 'DM Sans', sans-serif; font-size: 0.8rem; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 0.25rem; border: none !important; padding: 0 !important;">
+                            Estimated Diabetes Risk
+                        </h3>
+                        <div style="font-family: 'Space Mono', monospace; color: {score_color}; font-size: 5rem; font-weight: 700; line-height: 1; margin: 0.5rem 0 1rem;">
+                            {risk_score:.1%}
+                        </div>
+                        <p style="color: #A0A0B0; font-size: 0.875rem; max-width: 420px; margin: 0 auto; line-height: 1.6;">
+                            {"High risk detected. Please consult a specialist promptly." if pred == 1 else "Lower relative risk detected based on the provided markers."}
+                        </p>
                     </div>
-                    <p style="color: #A0A0B0; font-size: 0.875rem; max-width: 420px; margin: 0 auto; line-height: 1.6;">
-                        {"High risk detected. Please consult a specialist promptly." if risk_score > 0.5 else "Lower relative risk detected based on the provided markers."}
-                    </p>
-                </div>
-            """, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
+
+                st.progress(float(risk_score))
+
+            else:
+                res_cols = st.columns(2)
+                for i, (name, risk_score, pred) in enumerate(results_with_pred):
+                    score_color = "#28a745" if pred == 0 else "#FF4B4B"
+                    badge_bg    = "rgba(40,167,69,0.15)" if pred == 0 else "rgba(255,75,75,0.15)"
+                    badge_label = "LOW RISK" if pred == 0 else "HIGH RISK"
+                    with res_cols[i]:
+                        st.markdown(f"""
+                            <div style="padding:1.75rem 1.5rem; border-radius:14px;
+                                        background:linear-gradient(135deg,#13131A 0%,#0F0F18 100%);
+                                        border:1px solid {score_color}33; box-shadow:0 0 30px {score_color}18;
+                                        text-align:center; margin-bottom:0.75rem;">
+                                <p style="font-family:'Space Mono',monospace; color:#808090; font-size:0.65rem;
+                                          letter-spacing:0.15em; text-transform:uppercase; margin:0 0 0.4rem;">
+                                    {name}
+                                </p>
+                                <span class="risk-badge" style="background:{badge_bg}; color:{score_color}; border:1px solid {score_color}44;">
+                                    {badge_label}
+                                </span>
+                                <div style="font-family:'Space Mono',monospace; color:{score_color};
+                                            font-size:3.5rem; font-weight:700; line-height:1; margin:0.4rem 0 0.75rem;">
+                                    {risk_score:.1%}
+                                </div>
+                            </div>
+                        """, unsafe_allow_html=True)
+                        st.progress(float(risk_score))
+
+                # ── Agreement banner ──
+                st.markdown("---")
+                pred_a = results_with_pred[0][2]
+                pred_b = results_with_pred[1][2]
+                if pred_a == pred_b:
+                    if pred_a == 1:
+                        st.error("Both models agree: **High Risk Detected** — Clinical evaluation is recommended.")
+                    else:
+                        st.success("Both models agree: **Low Risk Detected**")
+                else:
+                    st.warning("Models disagree — Further clinical evaluation is recommended.")
 
             st.markdown("---")
 
-            # Tiered guidance
-            clamped = max(0.0, min(1.0, float(risk_score)))
+            # Tiered guidance — average risk score across selected models
+            avg_score = sum(s for _, s, _ in results_with_pred) / len(results_with_pred)
+            clamped   = max(0.0, min(1.0, float(avg_score)))
 
             if clamped < 0.30:
                 tier_icon = "✅"
@@ -386,7 +465,6 @@ def run_diabetes_analysis():
                      "If lifestyle changes aren't enough, effective medications exist. Many people manage diabetes well with the right support — your doctor can help you understand your options without pressure."),
                 ]
 
-            # Render guidance as a single block to avoid Streamlit gaps
             steps_html = ""
             for title, desc in steps:
                 steps_html += f"""
@@ -411,9 +489,7 @@ def run_diabetes_analysis():
                         {tier_title}
                     </p>"""
 
-            guidance_bottom = "</div>"
-
-            st.markdown(guidance_top + steps_html + guidance_bottom, unsafe_allow_html=True)
+            st.markdown(guidance_top + steps_html + "</div>", unsafe_allow_html=True)
 
             st.markdown("""
                 <div style="background:#13131A; border:1px solid #2A2A3A; border-left:3px solid #FF4B4B;
