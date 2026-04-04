@@ -466,7 +466,8 @@ def run_ckd_analysis():
         avg_prob = sum(p for _, p, _ in results) / len(results)
         clamped  = max(0.0, min(1.0, float(avg_prob)))
 
-        if clamped < 0.30:
+
+        if clamped < 0.50:
             tier_icon   = "✅"
             tier_title  = "Your kidney health indicators look reassuring"
             tier_color  = "#28a745"
@@ -477,19 +478,6 @@ def run_ckd_analysis():
                 ("Keep blood pressure in check", "High blood pressure is a major cause of kidney damage. Regular monitoring and a low-salt diet can help."),
                 ("Maintain a healthy weight", "Excess weight puts additional strain on the kidneys over time. Staying active and eating a balanced diet supports long-term kidney health."),
                 ("Routine check-ups", "Even at low risk, periodic kidney function testing is a good habit, especially if you have diabetes or high blood pressure."),
-            ]
-        elif clamped < 0.60:
-            tier_icon   = "🟡"
-            tier_title  = "A few areas worth keeping an eye on"
-            tier_color  = "#f0a500"
-            tier_bg     = "rgba(240,165,0,0.07)"
-            tier_border = "rgba(240,165,0,0.3)"
-            steps = [
-                ("Speak with your doctor", "These results suggest it is worth discussing your kidney health at your next appointment."),
-                ("Monitor blood pressure closely", "Uncontrolled hypertension is one of the fastest ways kidney function declines."),
-                ("Watch your diet", "Reducing sodium and processed foods can reduce kidney workload."),
-                ("Manage diabetes carefully", "If you have diabetes, tight blood sugar control is very important for kidney protection."),
-                ("Avoid nephrotoxic medications", "Some medicines, such as frequent NSAID use, can stress the kidneys."),
             ]
         else:
             tier_icon   = "🔴"
@@ -504,6 +492,7 @@ def run_ckd_analysis():
                 ("Review medications with your doctor", "Some medications can worsen kidney function, so review them with a clinician."),
                 ("Follow a kidney-friendly diet", "A suitable diet can help reduce strain on the kidneys and support better outcomes."),
             ]
+
 
         steps_html = ""
         for title, desc in steps:
