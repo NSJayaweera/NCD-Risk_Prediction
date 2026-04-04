@@ -1,0 +1,15 @@
+[
+  "age",
+  "gender",
+  "diabetes_diagnosed",
+  "bp_systolic",
+  "bp_diastolic",
+  "bmi",
+  "serum_creatinine",
+  "blood_urea_nitrogen",
+  "albumin_serum",
+  "albumin_creatinine_ratio",
+  "uric_acid",
+  "phosphorus",
+  "calcium"
+]
