@@ -4,7 +4,12 @@ import pandas as pd
 import numpy as np
 import joblib
 import json
-import math
+
+st.set_page_config(
+    page_title="CKD Risk Prediction",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 
 
 def run_ckd_analysis():
@@ -30,6 +35,15 @@ def run_ckd_analysis():
             background-size: 40px 40px;
             pointer-events: none;
             z-index: 0;
+        }
+
+        /* ── Make page broader like previous layout ── */
+        .main .block-container {
+            max-width: 1320px !important;
+            padding-top: 2rem !important;
+            padding-left: 2rem !important;
+            padding-right: 2rem !important;
+            padding-bottom: 2rem !important;
         }
 
         /* ── Typography ── */
@@ -244,7 +258,6 @@ def run_ckd_analysis():
         </style>
     """, unsafe_allow_html=True)
 
-    # ── Load models ──
     @st.cache_resource
     def load_models():
         SAVE_DIR = "ckdModel/"
@@ -260,13 +273,12 @@ def run_ckd_analysis():
         st.error(f"Error loading models: {e}. Ensure the 'ckdModel/' folder contains the .pkl and .json files.")
         return
 
-    # ── eGFR Calculator (CKD-EPI 2021) ──
     def calculate_egfr(creatinine, age, gender):
         if creatinine <= 0 or age <= 0:
             return None
-        kappa      = 0.7   if gender == 0 else 0.9
+        kappa      = 0.7 if gender == 0 else 0.9
         alpha      = -0.241 if gender == 0 else -0.302
-        sex_factor = 1.012  if gender == 0 else 1.0
+        sex_factor = 1.012 if gender == 0 else 1.0
         ratio = creatinine / kappa
         if ratio < 1:
             egfr = 142 * (ratio ** alpha) * (0.9938 ** age) * sex_factor
@@ -274,13 +286,11 @@ def run_ckd_analysis():
             egfr = 142 * (ratio ** -1.200) * (0.9938 ** age) * sex_factor
         return round(egfr, 1)
 
-    # ── Header ──
     st.title("Chronic Kidney Disease Risk Prediction")
     st.write("Enter patient details below to predict CKD risk using AI models.")
 
     st.markdown("---")
 
-    # ── Model selection ──
     selected_model_name = st.radio(
         "Choose Prediction Model",
         options=["Stacking Model", "Bagging Model", "Both"],
@@ -290,18 +300,18 @@ def run_ckd_analysis():
 
     st.markdown("---")
 
-    # ── Input Form ──
     col1, col2 = st.columns(2)
 
     with col1:
         st.subheader("Basic Information")
-        age    = st.number_input("Age (years)", min_value=18, max_value=120, value=50)
+        age = st.number_input("Age (years)", min_value=18, max_value=120, value=32)
         gender = st.radio("Gender", options=["Female", "Male"], horizontal=True)
         gender_val = 1 if gender == "Male" else 0
 
-        weight = st.number_input("Weight (kg)", min_value=20.0, max_value=300.0, value=70.0)
-        height = st.number_input("Height (cm)", min_value=100.0, max_value=250.0, value=170.0)
-        bmi    = round(weight / ((height / 100) ** 2), 1)
+        weight = st.number_input("Weight (kg)", min_value=20.0, max_value=300.0, value=55.0)
+        height = st.number_input("Height (cm)", min_value=100.0, max_value=250.0, value=160.0)
+        bmi = round(weight / ((height / 100) ** 2), 1)
+
         st.markdown(f"""
             <div style="background:#13131A; border:1px solid #2A2A3A; border-left:3px solid #FF4B4B;
                         border-radius:8px; padding:0.6rem 1rem; margin:0.5rem 0;">
@@ -312,59 +322,59 @@ def run_ckd_analysis():
             </div>
         """, unsafe_allow_html=True)
 
-        bp_systolic  = st.number_input("Systolic BP (mmHg)", min_value=60, max_value=260, value=120)
-        bp_diastolic = st.number_input("Diastolic BP (mmHg)", min_value=30, max_value=160, value=80)
-        diabetes     = st.radio("Diabetes Diagnosed", options=["No", "Yes"], horizontal=True)
+        bp_systolic  = st.number_input("Systolic BP (mmHg)", min_value=60, max_value=260, value=110)
+        bp_diastolic = st.number_input("Diastolic BP (mmHg)", min_value=30, max_value=160, value=70)
+        diabetes = st.radio("Diabetes Diagnosed", options=["No", "Yes"], horizontal=True)
         diabetes_val = 1 if diabetes == "Yes" else 0
 
     with col2:
         st.subheader("Laboratory Values")
         blood_urea_nitrogen = st.number_input("Blood Urea Nitrogen (mg/dL)", min_value=1.0, max_value=200.0, value=10.0, step=0.5)
         urine_albumin = st.number_input("Urine Albumin (mg/L)", min_value=0.0, max_value=9000.0, value=1.0, step=1.0)
-        urine_creatinine = st.number_input("Urine Creatinine (mg/dL)", min_value=1.0, max_value=1200.0, value=200.0, step=1.0)
+        urine_creatinine = st.number_input("Urine Creatinine (mg/dL)", min_value=1.0, max_value=1200.0, value=120.0, step=1.0)
         albumin_serum = st.number_input("Serum Albumin (g/dL)", min_value=0.5, max_value=8.0, value=4.5, step=0.1)
         serum_creatinine = st.number_input("Serum Creatinine (mg/dL)", min_value=0.1, max_value=20.0, value=0.7, step=0.1)
-        uric_acid = st.number_input("Uric Acid (mg/dL)", min_value=0.5, max_value=25.0, value=4.5, step=0.1)
+        uric_acid = st.number_input("Uric Acid (mg/dL)", min_value=0.5, max_value=25.0, value=4.2, step=0.1)
+        phosphorus = st.number_input("Phosphorus (mg/dL)", min_value=0.5, max_value=15.0, value=3.8, step=0.1)
+        calcium = st.number_input("Calcium (mg/dL)", min_value=4.0, max_value=15.0, value=9.4, step=0.1)
 
-    # ── Auto-calculated values ──
     st.markdown("---")
     st.subheader("Auto-Calculated Values")
 
-    acr          = round(urine_albumin / urine_creatinine * 1000, 2) if urine_creatinine > 0 else 0
-    bun_cr_ratio = round(blood_urea_nitrogen / serum_creatinine, 2)  if serum_creatinine > 0 else 0
-    egfr_val     = calculate_egfr(serum_creatinine, age, gender_val)
+    acr = round((urine_albumin / urine_creatinine) * 1000, 2) if urine_creatinine > 0 else 0
+    egfr_val = calculate_egfr(serum_creatinine, age, gender_val)
 
     c1, c2, c3 = st.columns(3)
     c1.metric("Albumin-Creatinine Ratio (mg/g)", f"{acr}")
-    c2.metric("BUN / Creatinine Ratio",           f"{bun_cr_ratio}")
-    c3.metric("eGFR (CKD-EPI) — display only",    f"{egfr_val}")
+    c2.metric("eGFR (CKD-EPI) — display only", f"{egfr_val}")
+    c3.empty()
 
     st.markdown("---")
 
-    # ── Predict ──
-    if st.button("Predict CKD Risk"):
+    if st.button("Calculate CKD Risk"):
 
         patient_data = {
-            "age"                      : age,
-            "gender"                   : gender_val,
-            "bmi"                      : bmi,
-            "bp_systolic"              : bp_systolic,
-            "bp_diastolic"             : bp_diastolic,
-            "serum_creatinine"         : serum_creatinine,
-            "blood_urea_nitrogen"      : blood_urea_nitrogen,
-            "urine_albumin"            : urine_albumin,
-            "urine_creatinine"         : urine_creatinine,
-            "albumin_creatinine_ratio" : acr,
-            "albumin_serum"            : albumin_serum,
-            "uric_acid"                : uric_acid,
-            "diabetes_diagnosed"       : diabetes_val,
-            "bun_creatinine_ratio"     : bun_cr_ratio,
+            "age": age,
+            "gender": gender_val,
+            "bmi": bmi,
+            "bp_systolic": bp_systolic,
+            "bp_diastolic": bp_diastolic,
+            "serum_creatinine": serum_creatinine,
+            "blood_urea_nitrogen": blood_urea_nitrogen,
+            "albumin_creatinine_ratio": acr,
+            "albumin_serum": albumin_serum,
+            "uric_acid": uric_acid,
+            "diabetes_diagnosed": diabetes_val,
+            "phosphorus": phosphorus,
+            "calcium": calcium,
         }
 
         patient_df = pd.DataFrame([patient_data])
+
         for col in feature_order:
             if col not in patient_df.columns:
                 patient_df[col] = np.nan
+
         patient_df = patient_df[feature_order]
 
         stack_prob = stacking_model.predict_proba(patient_df)[0][1]
@@ -372,7 +382,6 @@ def run_ckd_analysis():
         bag_prob   = bagging_model.predict_proba(patient_df)[0][1]
         bag_pred   = bagging_model.predict(patient_df)[0]
 
-        # ── Determine what to show based on model selection ──
         if selected_model_name == "Stacking Model":
             results = [("Stacking Model", stack_prob, stack_pred)]
         elif selected_model_name == "Bagging Model":
@@ -383,12 +392,11 @@ def run_ckd_analysis():
                 ("Bagging Model",  bag_prob,   bag_pred),
             ]
 
-        # ── Result cards ──
         if len(results) == 1:
             name, prob, pred = results[0]
             score_color = "#FF4B4B" if pred == 1 else "#28a745"
             badge_bg    = "rgba(255,75,75,0.15)" if pred == 1 else "rgba(40,167,69,0.15)"
-            badge_label = "CKD DETECTED" if pred == 1 else "NO CKD DETECTED"
+            badge_label = "Higher CKD Risk" if pred == 1 else "Lower CKD Risk"
 
             st.markdown(f"""
                 <div style="padding:2.5rem 2rem; border-radius:16px;
@@ -421,7 +429,8 @@ def run_ckd_analysis():
             for i, (name, prob, pred) in enumerate(results):
                 score_color = "#FF4B4B" if pred == 1 else "#28a745"
                 badge_bg    = "rgba(255,75,75,0.15)" if pred == 1 else "rgba(40,167,69,0.15)"
-                badge_label = "CKD DETECTED" if pred == 1 else "NO CKD DETECTED"
+                badge_label = "Higher CKD Risk" if pred == 1 else "Lower CKD Risk"
+
                 with res_cols[i]:
                     st.markdown(f"""
                         <div style="padding:1.75rem 1.5rem; border-radius:14px;
@@ -443,46 +452,32 @@ def run_ckd_analysis():
                     """, unsafe_allow_html=True)
                     st.progress(float(prob))
 
-            # ── Agreement banner ──
             st.markdown("---")
             if stack_pred == bag_pred:
                 if stack_pred == 1:
-                    st.error("Both models agree: **CKD Detected** — Clinical evaluation is recommended.")
+                    st.error("Both models agree: **Higher CKD Risk** — Clinical evaluation is recommended.")
                 else:
-                    st.success("Both models agree: **No CKD Detected**")
+                    st.success("Both models agree: **Lower CKD Risk**")
             else:
                 st.warning("Models disagree — Further clinical evaluation is recommended.")
 
-        # ── Tiered guidance ──
         st.markdown("---")
 
         avg_prob = sum(p for _, p, _ in results) / len(results)
         clamped  = max(0.0, min(1.0, float(avg_prob)))
 
-        if clamped < 0.30:
+
+        if clamped < 0.50:
             tier_icon   = "✅"
             tier_title  = "Your kidney health indicators look reassuring"
             tier_color  = "#28a745"
             tier_bg     = "rgba(40,167,69,0.07)"
             tier_border = "rgba(40,167,69,0.3)"
             steps = [
-                ("Stay hydrated", "Drinking adequate water daily (around 2 litres for most adults) supports kidney filtration and helps prevent stone formation."),
-                ("Keep blood pressure in check", "High blood pressure is the leading cause of kidney damage. Regular monitoring and a low-salt diet go a long way."),
+                ("Stay hydrated", "Drinking adequate water daily supports kidney filtration and helps prevent stone formation."),
+                ("Keep blood pressure in check", "High blood pressure is a major cause of kidney damage. Regular monitoring and a low-salt diet can help."),
                 ("Maintain a healthy weight", "Excess weight puts additional strain on the kidneys over time. Staying active and eating a balanced diet supports long-term kidney health."),
-                ("Routine check-ups", "Even at low risk, an annual kidney function test (creatinine, eGFR) is a simple and worthwhile habit, especially if you have diabetes or high blood pressure."),
-            ]
-        elif clamped < 0.60:
-            tier_icon   = "🟡"
-            tier_title  = "A few areas worth keeping an eye on"
-            tier_color  = "#f0a500"
-            tier_bg     = "rgba(240,165,0,0.07)"
-            tier_border = "rgba(240,165,0,0.3)"
-            steps = [
-                ("Speak with your doctor", "These results suggest it's worth discussing your kidney health at your next appointment. A simple blood test (eGFR, creatinine) can give a clearer picture."),
-                ("Monitor blood pressure closely", "Target BP below 130/80 mmHg if you have kidney concerns. Uncontrolled hypertension is one of the fastest ways kidney function declines."),
-                ("Watch your diet", "Reducing sodium, processed foods, and excess protein can meaningfully reduce kidney workload. A dietitian can help you build a kidney-friendly meal plan."),
-                ("Manage diabetes carefully", "If you have diabetes, tight blood sugar control is one of the most protective things you can do for your kidneys. Regular HbA1c checks are important."),
-                ("Avoid nephrotoxic medications", "NSAIDs like ibuprofen and certain antibiotics can stress the kidneys. Always check with your doctor before taking these regularly."),
+                ("Routine check-ups", "Even at low risk, periodic kidney function testing is a good habit, especially if you have diabetes or high blood pressure."),
             ]
         else:
             tier_icon   = "🔴"
@@ -491,12 +486,13 @@ def run_ckd_analysis():
             tier_bg     = "rgba(255,75,75,0.07)"
             tier_border = "rgba(255,75,75,0.3)"
             steps = [
-                ("Book an appointment soon", "Based on these markers, we'd strongly encourage you to see a GP or nephrologist in the near future. Early-stage CKD is very manageable with the right care."),
-                ("Request a full kidney panel", "Ask your doctor for a comprehensive panel — eGFR, urine ACR, creatinine, BUN, and electrolytes. This gives the clearest picture of kidney function."),
-                ("Control blood pressure and blood sugar", "These are the two biggest modifiable risk factors for CKD progression. Even small improvements make a measurable difference in slowing decline."),
-                ("Review all medications with your doctor", "Some medications — including common pain relievers — can worsen kidney function. Your doctor can review your current medications and suggest safer alternatives."),
-                ("Dietary changes are important", "A kidney-friendly diet (lower potassium, phosphorus, and sodium) can slow progression significantly. A renal dietitian referral is worth asking about."),
+                ("Book an appointment soon", "Based on these markers, it is advisable to see a doctor or kidney specialist soon."),
+                ("Request a full kidney panel", "Ask for a full kidney workup such as eGFR, urine ACR, creatinine, and related tests."),
+                ("Control blood pressure and blood sugar", "These are two of the biggest modifiable risk factors for CKD progression."),
+                ("Review medications with your doctor", "Some medications can worsen kidney function, so review them with a clinician."),
+                ("Follow a kidney-friendly diet", "A suitable diet can help reduce strain on the kidneys and support better outcomes."),
             ]
+
 
         steps_html = ""
         for title, desc in steps:
@@ -528,7 +524,7 @@ def run_ckd_analysis():
             <div style="background:#13131A; border:1px solid #2A2A3A; border-left:3px solid #FF4B4B;
                         border-radius:8px; padding:0.85rem 1rem; margin-top:0.5rem;">
                 <p style="color:#C0C0D0; font-family:'DM Sans',sans-serif; font-size:0.82rem;
-                            line-height:1.5; margin:0;">
+                          line-height:1.5; margin:0;">
                     <strong>Note:</strong> This tool is for informational purposes only and is not a substitute for professional medical advice, diagnosis, or treatment.
                 </p>
             </div>
